@@ -1,14 +1,12 @@
 // =============================================================================================================  
 // Bootloader for Digital PDP8/e PDP8/f PDP8/m computers by Roland Huisman. MIT license
 // V1.1 fixed false run state message
-//
 // V1.2 changed RX8 boot address for RX8 (RX01) bootloader
-//
 // V1.3 Expanded to currently maximum possible 49 programs, so users can just replace the line with their own boot code
-//
 // V1.4 Added Kaleidoscope. Removed delays and Added variable "SlowDown". So you can determine your own loading speed. 
 // It's set to a quite fast but still blinky rate. Search for unsigned long SlowDown which is currently set at 35 milliseconds.
 // You can change it if you want to speed up or slow down the loading. 0 gives the maximum load speed 200 gives a real slow loading.
+// V1.5 Added TA8E TU60 bootstrap for Caps-8 and OS/8 setup cassettes
 // =============================================================================================================  
 
 
@@ -75,8 +73,10 @@
   const PROGMEM word Program_15[] = {0x3000, 0x0000, 0x0016, 0x3015, 0x3601, 0x2201, 0x2200, 0x5202, 0x3203, 0x3204, 0x3205, 0x1201, 0x3014, 0x3212, 0x3414, 0x3000}; // memory wipe field 0 Vince
   const PROGMEM word Program_16[] = {0x0200, 0x0000, 0x1220, 0x4221, 0x7040, 0x1217, 0x3217, 0x1217, 0x6053, 0x4221, 0x1220, 0x6054, 0x6052, 0x5212, 0x6055, 0x3220, 0x5200, 0x3777, 0x0006, 0x0000
                                     ,0x3236, 0x7404, 0x7041, 0x3237, 0x1236, 0x7100, 0x7510, 0x7020, 0x7010, 0x2237, 0x5227, 0x5621, 0x0000, 0x0000, 0x6144, 0x5240, 0x0200}; // Kaleidoscope
-  const PROGMEM word Program_17[] = {0x0200, 0x0000, 0x7001, 0x2300, 0x5201, 0x5200, 0x0200}; //AC increment. REPLACE THIS CODE WITH YOUR OWN BOOTSTRAP IF YOU WANT TO.
+  const PROGMEM word Program_17[] = {0x4000, 0x0000, 0x1237, 0x1206, 0x6704, 0x6706, 0x6703, 0x5204, 0x7264, 0x6702, 0x7610, 0x3211, 0x3636, 0x1205, 0x6704, 0x6706, 0x6701, 0x5216, 0x7002, 0x7430, 0x1636, 0x7022, 0x3636, 0x7420, 0x2236
+                                    , 0x2235, 0x5215, 0x7346, 0x7002, 0x3235, 0x5201, 0x7737, 0x3557, 0x7730, 0x4000}; // TA8E TU60 CAPS-8 or OS/8 setup cassettes
 
+                                    
   // from here programs are not selectable by the dipswitches. These can be loaded by toggeling the SW switch or pushbutton on the PCB only.
   //group 2x
   const PROGMEM word Program_20[] = {0x0200, 0x0000, 0x7200, 0x7100, 0x7040, 0x7020, 0x7020, 0x7010, 0x7004, 0x7012, 0x7006, 0x7001, 0x7001, 0x7002, 0x7402, 0x0200}; //group 1 microinstructions
