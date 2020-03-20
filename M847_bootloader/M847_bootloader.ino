@@ -1,8 +1,14 @@
 // =============================================================================================================  
 // Bootloader for Digital PDP8/e PDP8/f PDP8/m computers by Roland Huisman. MIT license
 // V1.1 fixed false run state message
+//
 // V1.2 changed RX8 boot address for RX8 (RX01) bootloader
+//
 // V1.3 Expanded to currently maximum possible 49 programs, so users can just replace the line with their own boot code
+//
+// V1.4 Added Kaleidoscope. Removed delays and Added variable "SlowDown". So you can determine your own loading speed. 
+// It's set to a quite fast but still blinky rate. Search for unsigned long SlowDown which is currently set at 35 milliseconds.
+// You can change it if you want to speed up or slow down the loading. 0 gives the maximum load speed 200 gives a real slow loading.
 // =============================================================================================================  
 
 
@@ -67,7 +73,8 @@
                                     ,0x7006, 0x1355, 0x5743, 0x5262, 0x0006, 0x0000, 0x0000, 0x6032, 0x6031, 0x5357, 0x6036, 0x7106, 0x7006, 0x7510, 0x5357, 0x7006, 0x6031, 0x5367, 0x6034, 0x7420, 0x3776, 0x3376, 0x5356, 0x7776, 0x5301, 0x7777}; //BIN LOADER
   const PROGMEM word Program_14[] = {0x7300, 0x0000, 0x1312, 0x4312, 0x4312, 0x6773, 0x5303, 0x6777, 0x3726, 0x2326, 0x5303, 0x5732, 0x2000, 0x1300, 0x6774, 0x6771, 0x5315, 0x6776, 0x0331, 0x1327, 0x7640, 0x5315, 0x2321, 0x5712, 0x7354, 0x7756, 0x7747, 0x0077, 0x7400, 0x7300}; //MI8-EH TD8-E
   const PROGMEM word Program_15[] = {0x3000, 0x0000, 0x0016, 0x3015, 0x3601, 0x2201, 0x2200, 0x5202, 0x3203, 0x3204, 0x3205, 0x1201, 0x3014, 0x3212, 0x3414, 0x3000}; // memory wipe field 0 Vince
-  const PROGMEM word Program_16[] = {0x0200, 0x0000, 0x7001, 0x2300, 0x5201, 0x5200, 0x0200}; //AC increment. REPLACE THIS CODE WITH YOUR OWN BOOTSTRAP IF YOU WANT TO.
+  const PROGMEM word Program_16[] = {0x0200, 0x0000, 0x1220, 0x4221, 0x7040, 0x1217, 0x3217, 0x1217, 0x6053, 0x4221, 0x1220, 0x6054, 0x6052, 0x5212, 0x6055, 0x3220, 0x5200, 0x3777, 0x0006, 0x0000
+                                    ,0x3236, 0x7404, 0x7041, 0x3237, 0x1236, 0x7100, 0x7510, 0x7020, 0x7010, 0x2237, 0x5227, 0x5621, 0x0000, 0x0000, 0x6144, 0x5240, 0x0200}; // Kaleidoscope
   const PROGMEM word Program_17[] = {0x0200, 0x0000, 0x7001, 0x2300, 0x5201, 0x5200, 0x0200}; //AC increment. REPLACE THIS CODE WITH YOUR OWN BOOTSTRAP IF YOU WANT TO.
 
   // from here programs are not selectable by the dipswitches. These can be loaded by toggeling the SW switch or pushbutton on the PCB only.
@@ -155,7 +162,9 @@
   volatile word ProgramLength             = 0x0000;// To calculate the amount of words in the programs
   volatile byte RunOnce                   = 0x00;  // just run Kitt once at turn on
 
-
+  unsigned long SlowDown                  = 35;    // Blink delay in milli seconds. This slows down the loading of a bootstrap to give it a nice blinking effect.
+                                                   // Placing a 0 loads the program at full speed, you can't really see a program to be loaded.
+                                                   // Placing 50 will give a nice blinking effect but it slows down the program loading.
 
   
 void setup ()
@@ -254,7 +263,7 @@ void setup ()
 void loop ()
 {
   if (RunOnce==0x00){Kitt();}
-  Serial.println   ("PDP8/E, PDP8/F, PDP8/M bootloader by Roland Huisman V1.0");
+  Serial.println   ("PDP8/E, PDP8/F, PDP8/M bootloader by Roland Huisman V1.4");
   Serial.println   ();
   Serial.print     ("Default program number by dipswitch ");
   Serial.println   (ReadDefaultProgramNumber(),HEX);
@@ -453,7 +462,7 @@ void LoadProgram(const word TheProgram[], int ProgramLength)
       if (i==1){ExtendedAddressLoad();}
       if (i==ProgramLength-1) {AddresLoad();}
       if ((i!=0)&(i!=1)&(i!=ProgramLength-1)) {Deposit();}
-      delay(50);
+      delay(SlowDown);
     }
   SwitchRegister(0x0000);
   Serial.println();
@@ -490,7 +499,6 @@ void SingleStep()
   {
     Serial.println("Go into Single Step mode");
     digitalWrite (w_STOP , HIGH);                     // Places the machine in Single step mode
-    delay(100);
   }
 
 
@@ -500,7 +508,6 @@ void UndoSingleStep()
   {
     Serial.println("Undo Single Step mode");
     digitalWrite (w_STOP , LOW);                     // Get the machine out of Single step mode
-    delay(100);
   }
 
 
@@ -514,9 +521,7 @@ void Deposit()
     digitalWrite (w_KEY_CONTROL     , HIGH)    ; 
     digitalWrite (Show_Data         , HIGH)    ; 
     digitalWrite (w_MS_IR_DISABLE   , HIGH)    ;
-    delay(50);
     Trigger_Mem_Start ();
-    delay(50);
     digitalWrite (Set_Flip_Flop     , LOW)     ; 
     digitalWrite (w_KEY_CONTROL     , LOW)     ;
     digitalWrite (Show_Data         , LOW)     ;
@@ -536,9 +541,7 @@ void AddresLoad()
     digitalWrite (Set_Flip_Flop     , HIGH)    ; // get machine ready to receive an address 
     digitalWrite (Show_Data         , HIGH)    ;                                            
     digitalWrite (Exam              , HIGH)    ;                                            
-    delay(20);
     Trigger_Adres_Latch ();
-    delay(20);
     digitalWrite (w_LA_ENABLE       , LOW)     ; // get machine out of address latch mode
     digitalWrite (w_MS_IR_DISABLE   , LOW)     ; // get machine out of address latch mode
     digitalWrite (Set_Flip_Flop     , LOW)     ; // get machine out of address latch mode
@@ -558,9 +561,7 @@ void ExtendedAddressLoad()
     digitalWrite (w_KEY_CONTROL     , HIGH)    ; // get machine ready to receive an extended address  
     digitalWrite (Set_Flip_Flop     , HIGH)    ; // get machine ready to receive an extended address  
     digitalWrite (Show_Data         , HIGH)    ;                                                      
-    delay(20);
     Trigger_Adres_Latch ();
-    delay(20);
     digitalWrite (w_LA_ENABLE       , LOW)     ; // get machine out of extended address latch mode
     digitalWrite (w_KEY_CONTROL     , LOW)     ; // get machine out of extended address latch mode
     digitalWrite (Set_Flip_Flop     , LOW)     ; // get machine out of extended address latch mode
@@ -574,7 +575,6 @@ void ExtendedAddressLoad()
 //                                                 Clear
 void Clear()
   {
-    delay(50);
     Serial.print("Clear machine");
     if (digitalRead(r_RUN) == HIGH)         // check if machine is not running
       {
@@ -586,7 +586,6 @@ void Clear()
         Serial.print(" >> ERROR !! Machine not cleared due RUN state !");
       }
     Serial.println();  
-    delay(50);  
   }
 
   
@@ -662,7 +661,7 @@ void Kitt()
   {
     SingleStep();
     RunOnce++;
-    int scanspeed = 0;
+    unsigned long scanspeed = 35;
 
         SwitchRegister(0x0001);
         AddresLoad();
