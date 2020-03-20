@@ -1,6 +1,8 @@
 // =============================================================================================================  
 // Bootloader for Digital PDP8/e PDP8/f PDP8/m computers by Roland Huisman. MIT license
 // V1.1 fixed false run state message
+// V1.2 changed RX8 boot address for RX8 (RX01) bootloader
+// V1.3 Expanded to currently maximum possible 49 programs, so users can just replace the line with their own boot code
 // =============================================================================================================  
 
 
@@ -31,11 +33,20 @@
 // Programnumbers are shown in Octal as well... The highest program number is currently 77 (so 7 x 7 = 49 programs)
 // Program_00 does not exist, this is used to load the selected default 
 // 
+//
 // =============================================================================================================  
 
 
+
+
+// ================================== FROM HERE THE BOOTSTRAPS CAN BE ENTERED =================================
+
+// The program numbers in group 0x and 1x can be set by the dipstitches as default bootloader.
+// This means, when you toggle the SW switch just once down and up again, the delected default is loaded.
+// If an other program is desired to load, just toggle the SW switch more often and watch the address lights for the program number.
+  
   //group 0x
-  // Program 0 does not exist, this is to load a default)
+  // Program 0 does not exist, this is preseved to load a default trough the dip switches
   const PROGMEM word Program_01[] = {0x0017, 0x0000, 0x0017, 0x7240, 0x3017, 0x1045, 0x6416, 0x6411, 0x5024, 0x6402, 0x6401, 0x5027, 0x6406, 0x7106, 0x7006, 0x7510, 0x5000, 0x7006, 0x6401, 0x5037, 0x6404, 0x3417, 0x5026, 0x7605, 0x0100, 0x0020}; // OS8 disk server load 40/41
   const PROGMEM word Program_02[] = {0x7737, 0x0000, 0x6014, 0x0776, 0x7326, 0x1337, 0x2376, 0x5340, 0x6011, 0x5356, 0x3361, 0x1361, 0x3371, 0x1345, 0x3357, 0x1345, 0x3367, 0x6032, 0x6031, 0x5357, 0x6036, 0x7106, 0x7006, 0x7510, 0x5374, 0x7006, 0x6031, 0x5367, 0x6034, 0x7420, 0x3776, 0x3376, 0x5356, 0x0000, 0x7737}; // MI8-EA papertape
   const PROGMEM word Program_03[] = {0x7554, 0x0000, 0x7600, 0x6774, 0x1374, 0x6766, 0x6771, 0x5360, 0x7240, 0x1354, 0x3773, 0x1354, 0x3772, 0x1375, 0x6766, 0x5376, 0x7754, 0x7755, 0x0600, 0x0220, 0x6771, 0x5376, 0x7777, 0x7554}; //MI8-EC TC08 dec tape
@@ -46,8 +57,8 @@
 
 
   //group 1x
-  const PROGMEM word Program_10[] = {0x0024, 0x0000, 0x7126, 0x1060, 0x6701, 0x7201, 0x4053, 0x4053, 0x7104, 0x6705, 0x5054, 0x6704, 0x7450, 0x7610, 0x5046, 0x1060, 0x7041, 0x1061, 0x3060, 0x5024, 0x6701, 0x4053, 0x3002, 0x2050, 0x5047, 0x0000, 0x6703, 0x5033, 0x6702, 0x5453, 0x7024, 0x6030, 0x0033}; //RX8 bootloader
-  const PROGMEM word Program_11[] = {0x0020, 0x0000, 0x1061, 0x1046, 0x0060, 0x3061, 0x7327, 0x1061, 0x6701, 0x7301, 0x4053, 0x4053, 0x7004, 0x6705, 0x5054, 0x6704, 0x7450, 0x5020, 0x1061, 0x6701, 0x1061, 0x0046, 0x1032, 0x3060, 0x0360, 0x4053, 0x3002, 0x2050, 0x5047, 0x0000, 0x6703, 0x5033, 0x6702, 0x5453, 0x0420, 0x0020, 0x0033}; //RX28
+  const PROGMEM word Program_10[] = {0x0024, 0x0000, 0x7126, 0x1060, 0x6751, 0x7201, 0x4053, 0x4053, 0x7104, 0x6755, 0x5054, 0x6754, 0x7450, 0x7610, 0x5046, 0x1060, 0x7041, 0x1061, 0x3060, 0x5024, 0x6751, 0x4053, 0x3002, 0x2050, 0x5047, 0x0000, 0x6753, 0x5033, 0x6752, 0x5453, 0x7024, 0x6030, 0x0033}; //RX8 bootloader (M8357 RX8E card at 675x)
+  const PROGMEM word Program_11[] = {0x0020, 0x0000, 0x1061, 0x1046, 0x0060, 0x3061, 0x7327, 0x1061, 0x6751, 0x7301, 0x4053, 0x4053, 0x7004, 0x6755, 0x5054, 0x6754, 0x7450, 0x5020, 0x1061, 0x6751, 0x1061, 0x0046, 0x1032, 0x3060, 0x0360, 0x4053, 0x3002, 0x2050, 0x5047, 0x0000, 0x6753, 0x5033, 0x6752, 0x5453, 0x0420, 0x0020, 0x0033}; //RX28 (M8357 RX8E card at 675x)
   const PROGMEM word Program_12[] = {0x7756, 0x0000, 0x6032, 0x6031, 0x5357, 0x6036, 0x7106, 0x7006, 0x7510, 0x5357, 0x7006, 0x6031, 0x5367, 0x6034, 0x7420, 0x3776, 0x3376, 0x5356, 0x7756}; // RIM loader  
   const PROGMEM word Program_13[] = {0x7612, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x3212, 0x4260, 0x1300, 0x7750, 0x5237, 0x2212, 0x7040, 0x5227
                                     ,0x1212, 0x7640, 0x5230, 0x1214, 0x0274, 0x1341, 0x7510, 0x2226, 0x7750, 0x5626, 0x1214, 0x0256, 0x1257, 0x3213, 0x5230, 0x0070, 0x6201, 0x0000, 0x0000, 0x6031, 0x5262, 0x6036, 0x3214, 0x1214
@@ -56,10 +67,10 @@
                                     ,0x7006, 0x1355, 0x5743, 0x5262, 0x0006, 0x0000, 0x0000, 0x6032, 0x6031, 0x5357, 0x6036, 0x7106, 0x7006, 0x7510, 0x5357, 0x7006, 0x6031, 0x5367, 0x6034, 0x7420, 0x3776, 0x3376, 0x5356, 0x7776, 0x5301, 0x7777}; //BIN LOADER
   const PROGMEM word Program_14[] = {0x7300, 0x0000, 0x1312, 0x4312, 0x4312, 0x6773, 0x5303, 0x6777, 0x3726, 0x2326, 0x5303, 0x5732, 0x2000, 0x1300, 0x6774, 0x6771, 0x5315, 0x6776, 0x0331, 0x1327, 0x7640, 0x5315, 0x2321, 0x5712, 0x7354, 0x7756, 0x7747, 0x0077, 0x7400, 0x7300}; //MI8-EH TD8-E
   const PROGMEM word Program_15[] = {0x3000, 0x0000, 0x0016, 0x3015, 0x3601, 0x2201, 0x2200, 0x5202, 0x3203, 0x3204, 0x3205, 0x1201, 0x3014, 0x3212, 0x3414, 0x3000}; // memory wipe field 0 Vince
-//const PROGMEM word Program_16[] = {};
-//const PROGMEM word Program_17[] = {};
+  const PROGMEM word Program_16[] = {0x0200, 0x0000, 0x7001, 0x2300, 0x5201, 0x5200, 0x0200}; //AC increment. REPLACE THIS CODE WITH YOUR OWN BOOTSTRAP IF YOU WANT TO.
+  const PROGMEM word Program_17[] = {0x0200, 0x0000, 0x7001, 0x2300, 0x5201, 0x5200, 0x0200}; //AC increment. REPLACE THIS CODE WITH YOUR OWN BOOTSTRAP IF YOU WANT TO.
 
-  // from here programs are not selectable by the dipswitches. These can be loades by toggeling the WS switch or pushbutton on the PCB.
+  // from here programs are not selectable by the dipswitches. These can be loaded by toggeling the SW switch or pushbutton on the PCB only.
   //group 2x
   const PROGMEM word Program_20[] = {0x0200, 0x0000, 0x7200, 0x7100, 0x7040, 0x7020, 0x7020, 0x7010, 0x7004, 0x7012, 0x7006, 0x7001, 0x7001, 0x7002, 0x7402, 0x0200}; //group 1 microinstructions
   const PROGMEM word Program_21[] = {0x0200, 0x0000, 0x7300, 0x7440, 0x7402, 0x7430, 0x7402, 0x7020, 0x7420, 0x7402, 0x7001, 0x7450, 0x7402, 0x7510, 0x7402, 0x7410, 0x7402, 0x7012, 0x7500, 0x7402, 0x7404, 0x7402, 0x0200}; //group 1 microinstructions
@@ -76,7 +87,51 @@
   const PROGMEM word Program_32[] = {0x0000, 0x0000, 0x7001, 0x6046, 0x6041, 0x5002, 0x5000, 0x0000}; // console print test
   const PROGMEM word Program_33[] = {0x0000, 0x0000, 0x6032, 0x6031, 0x5001, 0x6036, 0x6046, 0x6041, 0x5005, 0x5001, 0x0000}; // Echo test for one terminal at 03/04
   const PROGMEM word Program_34[] = {0x0200, 0x0000, 0x7300, 0x1205, 0x6412, 0x6401, 0x5203, 0x0210, 0x6406, 0x5203, 0x7000, 0x7000, 0x7000, 0x5206, 0x7000, 0x7000, 0x7000, 0x6405, 0x6404, 0x5203, 0x0200}; // echo 1-4 terminals
+  const PROGMEM word Program_35[] = {0x0200, 0x0000, 0x7001, 0x6026, 0x6021, 0x5202, 0x5202, 0x0200}; // PC04 Punch alternating 1's and 0's
+  const PROGMEM word Program_36[] = {0x0200, 0x0000, 0x7300, 0x6016, 0x6011, 0x5202, 0x5200, 0x0200}; // PC04 read the papertape (doesn't load to core, just for test purposes)
+  const PROGMEM word Program_37[] = {0x0200, 0x0000, 0x7001, 0x2300, 0x5201, 0x5200, 0x0200}; //AC increment. REPLACE THIS CODE WITH YOUR OWN BOOTSTRAP IF YOU WANT TO.
 
+  // group 4x
+  const PROGMEM word Program_40[] = {0x0200, 0x0000, 0x7001, 0x2300, 0x5201, 0x5200, 0x0200}; //AC increment. REPLACE THIS CODE WITH YOUR OWN BOOTSTRAP IF YOU WANT TO.
+  const PROGMEM word Program_41[] = {0x0200, 0x0000, 0x7001, 0x2300, 0x5201, 0x5200, 0x0200}; //AC increment. REPLACE THIS CODE WITH YOUR OWN BOOTSTRAP IF YOU WANT TO.
+  const PROGMEM word Program_42[] = {0x0200, 0x0000, 0x7001, 0x2300, 0x5201, 0x5200, 0x0200}; //AC increment. REPLACE THIS CODE WITH YOUR OWN BOOTSTRAP IF YOU WANT TO.
+  const PROGMEM word Program_43[] = {0x0200, 0x0000, 0x7001, 0x2300, 0x5201, 0x5200, 0x0200}; //AC increment. REPLACE THIS CODE WITH YOUR OWN BOOTSTRAP IF YOU WANT TO.
+  const PROGMEM word Program_44[] = {0x0200, 0x0000, 0x7001, 0x2300, 0x5201, 0x5200, 0x0200}; //AC increment. REPLACE THIS CODE WITH YOUR OWN BOOTSTRAP IF YOU WANT TO.
+  const PROGMEM word Program_45[] = {0x0200, 0x0000, 0x7001, 0x2300, 0x5201, 0x5200, 0x0200}; //AC increment. REPLACE THIS CODE WITH YOUR OWN BOOTSTRAP IF YOU WANT TO.
+  const PROGMEM word Program_46[] = {0x0200, 0x0000, 0x7001, 0x2300, 0x5201, 0x5200, 0x0200}; //AC increment. REPLACE THIS CODE WITH YOUR OWN BOOTSTRAP IF YOU WANT TO.
+  const PROGMEM word Program_47[] = {0x0200, 0x0000, 0x7001, 0x2300, 0x5201, 0x5200, 0x0200}; //AC increment. REPLACE THIS CODE WITH YOUR OWN BOOTSTRAP IF YOU WANT TO.
+
+  // group 5x
+  const PROGMEM word Program_50[] = {0x0200, 0x0000, 0x7001, 0x2300, 0x5201, 0x5200, 0x0200}; //AC increment. REPLACE THIS CODE WITH YOUR OWN BOOTSTRAP IF YOU WANT TO.
+  const PROGMEM word Program_51[] = {0x0200, 0x0000, 0x7001, 0x2300, 0x5201, 0x5200, 0x0200}; //AC increment. REPLACE THIS CODE WITH YOUR OWN BOOTSTRAP IF YOU WANT TO.
+  const PROGMEM word Program_52[] = {0x0200, 0x0000, 0x7001, 0x2300, 0x5201, 0x5200, 0x0200}; //AC increment. REPLACE THIS CODE WITH YOUR OWN BOOTSTRAP IF YOU WANT TO.
+  const PROGMEM word Program_53[] = {0x0200, 0x0000, 0x7001, 0x2300, 0x5201, 0x5200, 0x0200}; //AC increment. REPLACE THIS CODE WITH YOUR OWN BOOTSTRAP IF YOU WANT TO.
+  const PROGMEM word Program_54[] = {0x0200, 0x0000, 0x7001, 0x2300, 0x5201, 0x5200, 0x0200}; //AC increment. REPLACE THIS CODE WITH YOUR OWN BOOTSTRAP IF YOU WANT TO.
+  const PROGMEM word Program_55[] = {0x0200, 0x0000, 0x7001, 0x2300, 0x5201, 0x5200, 0x0200}; //AC increment. REPLACE THIS CODE WITH YOUR OWN BOOTSTRAP IF YOU WANT TO.
+  const PROGMEM word Program_56[] = {0x0200, 0x0000, 0x7001, 0x2300, 0x5201, 0x5200, 0x0200}; //AC increment. REPLACE THIS CODE WITH YOUR OWN BOOTSTRAP IF YOU WANT TO.
+  const PROGMEM word Program_57[] = {0x0200, 0x0000, 0x7001, 0x2300, 0x5201, 0x5200, 0x0200}; //AC increment. REPLACE THIS CODE WITH YOUR OWN BOOTSTRAP IF YOU WANT TO.
+
+  // group 6x
+  const PROGMEM word Program_60[] = {0x0200, 0x0000, 0x7001, 0x2300, 0x5201, 0x5200, 0x0200}; //AC increment. REPLACE THIS CODE WITH YOUR OWN BOOTSTRAP IF YOU WANT TO.
+  const PROGMEM word Program_61[] = {0x0200, 0x0000, 0x7001, 0x2300, 0x5201, 0x5200, 0x0200}; //AC increment. REPLACE THIS CODE WITH YOUR OWN BOOTSTRAP IF YOU WANT TO.
+  const PROGMEM word Program_62[] = {0x0200, 0x0000, 0x7001, 0x2300, 0x5201, 0x5200, 0x0200}; //AC increment. REPLACE THIS CODE WITH YOUR OWN BOOTSTRAP IF YOU WANT TO.
+  const PROGMEM word Program_63[] = {0x0200, 0x0000, 0x7001, 0x2300, 0x5201, 0x5200, 0x0200}; //AC increment. REPLACE THIS CODE WITH YOUR OWN BOOTSTRAP IF YOU WANT TO.
+  const PROGMEM word Program_64[] = {0x0200, 0x0000, 0x7001, 0x2300, 0x5201, 0x5200, 0x0200}; //AC increment. REPLACE THIS CODE WITH YOUR OWN BOOTSTRAP IF YOU WANT TO.
+  const PROGMEM word Program_65[] = {0x0200, 0x0000, 0x7001, 0x2300, 0x5201, 0x5200, 0x0200}; //AC increment. REPLACE THIS CODE WITH YOUR OWN BOOTSTRAP IF YOU WANT TO.
+  const PROGMEM word Program_66[] = {0x0200, 0x0000, 0x7001, 0x2300, 0x5201, 0x5200, 0x0200}; //AC increment. REPLACE THIS CODE WITH YOUR OWN BOOTSTRAP IF YOU WANT TO.
+  const PROGMEM word Program_67[] = {0x0200, 0x0000, 0x7001, 0x2300, 0x5201, 0x5200, 0x0200}; //AC increment. REPLACE THIS CODE WITH YOUR OWN BOOTSTRAP IF YOU WANT TO.
+
+  // group 7x
+  const PROGMEM word Program_70[] = {0x0200, 0x0000, 0x7001, 0x2300, 0x5201, 0x5200, 0x0200}; //AC increment. REPLACE THIS CODE WITH YOUR OWN BOOTSTRAP IF YOU WANT TO.
+  const PROGMEM word Program_71[] = {0x0200, 0x0000, 0x7001, 0x2300, 0x5201, 0x5200, 0x0200}; //AC increment. REPLACE THIS CODE WITH YOUR OWN BOOTSTRAP IF YOU WANT TO.
+  const PROGMEM word Program_72[] = {0x0200, 0x0000, 0x7001, 0x2300, 0x5201, 0x5200, 0x0200}; //AC increment. REPLACE THIS CODE WITH YOUR OWN BOOTSTRAP IF YOU WANT TO.
+  const PROGMEM word Program_73[] = {0x0200, 0x0000, 0x7001, 0x2300, 0x5201, 0x5200, 0x0200}; //AC increment. REPLACE THIS CODE WITH YOUR OWN BOOTSTRAP IF YOU WANT TO.
+  const PROGMEM word Program_74[] = {0x0200, 0x0000, 0x7001, 0x2300, 0x5201, 0x5200, 0x0200}; //AC increment. REPLACE THIS CODE WITH YOUR OWN BOOTSTRAP IF YOU WANT TO.
+  const PROGMEM word Program_75[] = {0x0200, 0x0000, 0x7001, 0x2300, 0x5201, 0x5200, 0x0200}; //AC increment. REPLACE THIS CODE WITH YOUR OWN BOOTSTRAP IF YOU WANT TO.
+  const PROGMEM word Program_76[] = {0x0200, 0x0000, 0x7001, 0x2300, 0x5201, 0x5200, 0x0200}; //AC increment. REPLACE THIS CODE WITH YOUR OWN BOOTSTRAP IF YOU WANT TO.
+  const PROGMEM word Program_77[] = {0x0200, 0x0000, 0x7001, 0x2300, 0x5201, 0x5200, 0x0200}; //AC increment. REPLACE THIS CODE WITH YOUR OWN BOOTSTRAP IF YOU WANT TO.
+
+// ====================================== END OF BOOTSTRAPLIST =================================================
 
 
 
@@ -85,6 +140,8 @@
 // =============================================================================================================  
 //                                         Includes
   #include <Wire.h>                             // I2C handler
+
+
 
 
 // =============================================================================================================  
@@ -239,8 +296,8 @@ void loop ()
   if (ProgramNumber==0x13) {LoadProgram(Program_13, sizeof(Program_13));}  
   if (ProgramNumber==0x14) {LoadProgram(Program_14, sizeof(Program_14));}
   if (ProgramNumber==0x15) {LoadProgram(Program_15, sizeof(Program_15));}
-//  if (ProgramNumber==0x16) {LoadProgram(Program_16, sizeof(Program_16));}  
-//  if (ProgramNumber==0x17) {LoadProgram(Program_17, sizeof(Program_17));}
+  if (ProgramNumber==0x16) {LoadProgram(Program_16, sizeof(Program_16));}  
+  if (ProgramNumber==0x17) {LoadProgram(Program_17, sizeof(Program_17));}
 
   if (ProgramNumber==0x20) {LoadProgram(Program_20, sizeof(Program_20));}
   if (ProgramNumber==0x21) {LoadProgram(Program_21, sizeof(Program_21));}
@@ -256,9 +313,48 @@ void loop ()
   if (ProgramNumber==0x32) {LoadProgram(Program_32, sizeof(Program_32));}
   if (ProgramNumber==0x33) {LoadProgram(Program_33, sizeof(Program_33));}
   if (ProgramNumber==0x34) {LoadProgram(Program_34, sizeof(Program_34));}
-//  if (ProgramNumber==0x35) {LoadProgram(Program_35, sizeof(Program_35));}
-//  if (ProgramNumber==0x36) {LoadProgram(Program_36, sizeof(Program_36));}
-//  if (ProgramNumber==0x37) {LoadProgram(Program_37, sizeof(Program_37));}
+  if (ProgramNumber==0x35) {LoadProgram(Program_35, sizeof(Program_35));}
+  if (ProgramNumber==0x36) {LoadProgram(Program_36, sizeof(Program_36));}
+  if (ProgramNumber==0x37) {LoadProgram(Program_37, sizeof(Program_37));}
+
+  if (ProgramNumber==0x40) {LoadProgram(Program_40, sizeof(Program_40));}
+  if (ProgramNumber==0x41) {LoadProgram(Program_41, sizeof(Program_41));}
+  if (ProgramNumber==0x42) {LoadProgram(Program_42, sizeof(Program_42));}
+  if (ProgramNumber==0x43) {LoadProgram(Program_43, sizeof(Program_43));}
+  if (ProgramNumber==0x44) {LoadProgram(Program_44, sizeof(Program_44));}
+  if (ProgramNumber==0x45) {LoadProgram(Program_45, sizeof(Program_45));}
+  if (ProgramNumber==0x46) {LoadProgram(Program_46, sizeof(Program_46));}
+  if (ProgramNumber==0x47) {LoadProgram(Program_47, sizeof(Program_47));}
+
+  if (ProgramNumber==0x50) {LoadProgram(Program_50, sizeof(Program_50));}
+  if (ProgramNumber==0x51) {LoadProgram(Program_51, sizeof(Program_51));}
+  if (ProgramNumber==0x52) {LoadProgram(Program_52, sizeof(Program_52));}
+  if (ProgramNumber==0x53) {LoadProgram(Program_53, sizeof(Program_53));}
+  if (ProgramNumber==0x54) {LoadProgram(Program_54, sizeof(Program_54));}
+  if (ProgramNumber==0x55) {LoadProgram(Program_55, sizeof(Program_55));}
+  if (ProgramNumber==0x56) {LoadProgram(Program_56, sizeof(Program_56));}
+  if (ProgramNumber==0x57) {LoadProgram(Program_57, sizeof(Program_57));}
+
+  if (ProgramNumber==0x60) {LoadProgram(Program_60, sizeof(Program_60));}
+  if (ProgramNumber==0x61) {LoadProgram(Program_61, sizeof(Program_61));}
+  if (ProgramNumber==0x62) {LoadProgram(Program_62, sizeof(Program_62));}
+  if (ProgramNumber==0x63) {LoadProgram(Program_63, sizeof(Program_63));}
+  if (ProgramNumber==0x64) {LoadProgram(Program_64, sizeof(Program_64));}
+  if (ProgramNumber==0x65) {LoadProgram(Program_65, sizeof(Program_65));}
+  if (ProgramNumber==0x66) {LoadProgram(Program_66, sizeof(Program_66));}
+  if (ProgramNumber==0x67) {LoadProgram(Program_67, sizeof(Program_67));}
+
+  if (ProgramNumber==0x70) {LoadProgram(Program_70, sizeof(Program_70));}
+  if (ProgramNumber==0x71) {LoadProgram(Program_71, sizeof(Program_71));}
+  if (ProgramNumber==0x72) {LoadProgram(Program_72, sizeof(Program_72));}
+  if (ProgramNumber==0x73) {LoadProgram(Program_73, sizeof(Program_73));}
+  if (ProgramNumber==0x74) {LoadProgram(Program_74, sizeof(Program_74));}
+  if (ProgramNumber==0x75) {LoadProgram(Program_75, sizeof(Program_75));}
+  if (ProgramNumber==0x76) {LoadProgram(Program_76, sizeof(Program_76));}
+  if (ProgramNumber==0x77) {LoadProgram(Program_77, sizeof(Program_77));}
+  
+
+
 
 // etc...
 
