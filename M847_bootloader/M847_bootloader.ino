@@ -7,6 +7,7 @@
 // It's set to a quite fast but still blinky rate. Search for unsigned long SlowDown which is currently set at 35 milliseconds.
 // You can change it if you want to speed up or slow down the loading. 0 gives the maximum load speed 200 gives a real slow loading.
 // V1.5 Added TA8E TU60 bootstrap for Caps-8 and OS/8 setup cassettes
+// V1.6 Added program 37, receive charachters on 03/04 serial port and place them into AC
 // =============================================================================================================  
 
 
@@ -96,7 +97,7 @@
   const PROGMEM word Program_34[] = {0x0200, 0x0000, 0x7300, 0x1205, 0x6412, 0x6401, 0x5203, 0x0210, 0x6406, 0x5203, 0x7000, 0x7000, 0x7000, 0x5206, 0x7000, 0x7000, 0x7000, 0x6405, 0x6404, 0x5203, 0x0200}; // echo 1-4 terminals
   const PROGMEM word Program_35[] = {0x0200, 0x0000, 0x7001, 0x6026, 0x6021, 0x5202, 0x5202, 0x0200}; // PC04 Punch alternating 1's and 0's
   const PROGMEM word Program_36[] = {0x0200, 0x0000, 0x7300, 0x6016, 0x6011, 0x5202, 0x5200, 0x0200}; // PC04 read the papertape (doesn't load to core, just for test purposes)
-  const PROGMEM word Program_37[] = {0x0200, 0x0000, 0x7001, 0x2300, 0x5201, 0x5200, 0x0200}; //AC increment. REPLACE THIS CODE WITH YOUR OWN BOOTSTRAP IF YOU WANT TO.
+  const PROGMEM word Program_37[] = {0x0000, 0x0000, 0x6032, 0x6031, 0x5001, 0x6036, 0x5001, 0x0000}; // Place received character into AC from terminal at 03/04
 
   // group 4x
   const PROGMEM word Program_40[] = {0x0200, 0x0000, 0x7001, 0x2300, 0x5201, 0x5200, 0x0200}; //AC increment. REPLACE THIS CODE WITH YOUR OWN BOOTSTRAP IF YOU WANT TO.
@@ -263,7 +264,7 @@ void setup ()
 void loop ()
 {
   if (RunOnce==0x00){Kitt();}
-  Serial.println   ("PDP8/E, PDP8/F, PDP8/M bootloader by Roland Huisman V1.4");
+  Serial.println   ("PDP8/E, PDP8/F, PDP8/M bootloader by Roland Huisman V1.6");
   Serial.println   ();
   Serial.print     ("Default program number by dipswitch ");
   Serial.println   (ReadDefaultProgramNumber(),HEX);
