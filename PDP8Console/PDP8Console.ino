@@ -46,9 +46,6 @@
 //                       Transfer the switchregisterdata to the MC23017 to deposit or load address
 void SwitchRegister(word LoadData)
 {
-  Serial.print ("Set Switch Register to ");  
-  Serial.print (LoadData,HEX);
-  Serial.print (" "); 
   word WordA = (LoadData)      & 0x00FF;
   word WordB = (LoadData >> 8) & 0x00FF;
   //Serial.println (WordA, HEX);
@@ -84,7 +81,6 @@ void UndoSingleStep()
 //                                                Deposit
 void Deposit()
   {
-    Serial.println("Deposit");
     digitalWrite (Set_Flip_Flop     , HIGH)    ;
     digitalWrite (w_KEY_CONTROL     , HIGH)    ; 
     digitalWrite (Show_Data         , HIGH)    ; 
@@ -103,7 +99,6 @@ void Deposit()
 //                                               Address Load
 void AddresLoad()
   {
-    Serial.println("Addres Load");
     digitalWrite (w_LA_ENABLE       , HIGH)    ; // get machine ready to receive an address 
     digitalWrite (w_MS_IR_DISABLE   , HIGH)    ; // get machine ready to receive an address 
     digitalWrite (Set_Flip_Flop     , HIGH)    ; // get machine ready to receive an address 
@@ -124,7 +119,6 @@ void AddresLoad()
 //                                       Extended Memory Address Load
 void ExtendedAddressLoad()
   {
-    Serial.println("Extended Memory Address Load");
     digitalWrite (w_LA_ENABLE       , HIGH)    ; // get machine ready to receive an extended address  
     digitalWrite (w_KEY_CONTROL     , HIGH)    ; // get machine ready to receive an extended address  
     digitalWrite (Set_Flip_Flop     , HIGH)    ; // get machine ready to receive an extended address  
@@ -305,10 +299,10 @@ void printPrompt(char ch) {
 }
 
 void printSR(int value) {
-  Serial.write(0x07 & (value >> 12));
-  Serial.write(0x07 & (value >> 8));
-  Serial.write(0x07 & (value >> 4));
-  Serial.write(0x07 & value);  
+  Serial.write((0x07 & (value >> 12)) + 0x30);
+  Serial.write((0x07 & (value >> 8)) + 0x30);
+  Serial.write((0x07 & (value >> 4)) + 0x30);
+  Serial.write((0x07 & value) + 0x30);  
 }
 
 
@@ -354,14 +348,19 @@ if (Serial.available()> 0) {
             printPrompt(tmp);
             Deposit();
             break;
-         case 'X':  // Deposit
-            printPrompt(tmp);
+         case 'X':  // Print SR
+            Serial.write(tmp);
+            Serial.println(); 
+            Serial.print("Switch register: ");
             printSR(hexValue);
+            Serial.println();
+            Serial.print("PDP8CONSOLE> " );
             break;            
           case 'S': // Set SR
             Serial.write(tmp);
             Serial.write(" ");
             cmdState=1;
+            break;
           case 'H':
             Serial.println();
             Serial.println("PDP8CONSOLE HELP");
@@ -381,8 +380,8 @@ if (Serial.available()> 0) {
             break;
           case '\r':
           case '\n': 
-            Serial1.println();
-            Serial1.print("PDP8CONSOLE> " );
+            Serial.println();
+            Serial.print("PDP8CONSOLE> " );
             break;
         }
         break;
@@ -427,7 +426,7 @@ if (Serial.available()> 0) {
           Serial.write(tmp); // Echo character
           hexValue |= (7 & tmp);
           Serial.println();
-          SwitchRegister(tmp);
+          SwitchRegister(hexValue);
         }
         else {
           Serial.println("Invalid octal digit");
