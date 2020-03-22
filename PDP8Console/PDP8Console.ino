@@ -10,6 +10,7 @@
   #define Dip_2                   11          // PB3
   #define Dip_3                   12          // PB4
   #define Dip_4                   13          // PB5
+  #define BRK_DATA                10          // PB2
 
   #define w_INITIALIZE_H          A0          // PC0 for 400nS pulse
   #define w_PULSE_LA_H            A1          // PC1 for 400nS pulse
@@ -62,7 +63,6 @@ void SwitchRegister(word LoadData)
 //                                          Put PDP into Single Step mode
 void SingleStep()
   {
-    Serial.println("Go into Single Step mode");
     digitalWrite (w_STOP , HIGH);                     // Places the machine in Single step mode
   }
 
@@ -71,7 +71,6 @@ void SingleStep()
 //                                          Get PDP out of Single Step mode
 void UndoSingleStep()
   {
-    Serial.println("Undo Single Step mode");
     digitalWrite (w_STOP , LOW);                     // Get the machine out of Single step mode
   }
 
@@ -85,13 +84,13 @@ void Deposit()
     digitalWrite (w_KEY_CONTROL     , HIGH)    ; 
     digitalWrite (Show_Data         , HIGH)    ; 
     digitalWrite (w_MS_IR_DISABLE   , HIGH)    ;
-    digitalWrite (Dip_1             , HIGH)    ; // BRK DATA has to be high.    
+    digitalWrite (BRK_DATA          , HIGH)    ; // BRK DATA has to be high.    
     Trigger_Mem_Start ();
     digitalWrite (Set_Flip_Flop     , LOW)     ; 
     digitalWrite (w_KEY_CONTROL     , LOW)     ;
     digitalWrite (Show_Data         , LOW)     ;
     digitalWrite (w_MS_IR_DISABLE   , LOW)     ;
-    digitalWrite (Dip_1             , LOW)     ; // BRK DATA has to be high.    
+    digitalWrite (BRK_DATA          , LOW)     ; // BRK DATA has to be high.    
     
   }
 
@@ -106,14 +105,14 @@ void AddresLoad()
     digitalWrite (Set_Flip_Flop     , HIGH)    ; // get machine ready to receive an address 
     digitalWrite (Show_Data         , HIGH)    ;                                            
     digitalWrite (Exam              , HIGH)    ; 
-    digitalWrite (Dip_1             , LOW)     ; // BRK DATA has to be high.                                           
+    digitalWrite (BRK_DATA          , LOW)     ; // BRK DATA has to be high.                                           
     Trigger_Adres_Latch ();
     digitalWrite (w_LA_ENABLE       , LOW)     ; // get machine out of address latch mode
     digitalWrite (w_MS_IR_DISABLE   , LOW)     ; // get machine out of address latch mode
     digitalWrite (Set_Flip_Flop     , LOW)     ; // get machine out of address latch mode
     digitalWrite (Show_Data         , LOW)     ;
     digitalWrite (Exam              , LOW)     ;
-    digitalWrite (Dip_1             , HIGH)    ; // BRK DATA has to be high.    
+    digitalWrite (BRK_DATA          , HIGH)    ; // BRK DATA has to be high.    
   }
 
 
@@ -295,7 +294,7 @@ void setup ()
 int cmdState;
 int hexValue=0;
 char tmp;
-
+char cmd;
 void printPrompt(char ch) {
   Serial.write(tmp);
   Serial.println();
@@ -320,14 +319,6 @@ if (Serial.available()> 0) {
     switch (cmdState) {
       case 0:
         switch (tmp) {
-          case 'L': // Load Address
-            printPrompt(tmp);
-            AddresLoad();
-            break;
-          case 'E': // Load Extended Address
-            printPrompt(tmp);
-            ExtendedAddressLoad();
-            break;
           case 'C': // Continue / Run
             Serial.write(tmp);
             Serial.println();
@@ -340,45 +331,38 @@ if (Serial.available()> 0) {
             Clear();
             Serial.print("PDP8CONSOLE> " );
             break;
-          case 'R': // Set single step
+          case 'R': // Run
+            Serial.write(tmp);
+            Serial.println();
+            UndoSingleStep();
+            Continue();
+            Serial.print("PDP8CONSOLE> " );
+            break;
+          case 'T': // Trace - single step
             printPrompt(tmp);
             SingleStep();
-            break;
-          case 'T': // Clear single step
-            printPrompt(tmp);
+            Continue();
             UndoSingleStep();
             break;
-          case 'D':  // Deposit
-            printPrompt(tmp);
-            Deposit();
-            break;
-         case 'X':  // Print SR
-            Serial.write(tmp);
-            Serial.println(); 
-            Serial.print("Switch register: ");
-            printSR(hexValue);
-            Serial.println();
-            Serial.print("PDP8CONSOLE> " );
-            break;            
-          case 'S': // Set SR
+          case 'E': // Load Extended Address
+          case 'L': // Load Address
+          case 'D': // Set SR
             Serial.write(tmp);
             Serial.write(" ");
             cmdState=1;
+            cmd = tmp;
             break;
           case 'H':
             Serial.println();
             Serial.println("PDP8CONSOLE HELP");
             Serial.println("=======================");
             Serial.println("H - HELP");
-            Serial.println("S OOOO - Set switch register to octal value of OOOO.");
-            Serial.println("L - Do a load address operation.");
-            Serial.println("D - Do a deposit operation.");
-            Serial.println("E - Do a extended address load operation.");
-            Serial.println("C - Do a Continue/Run - let the CPU start executing.");
-            Serial.println("I - Do a Initialize operation.");
-            Serial.println("R - Set single step.");
-            Serial.println("T - Clear single step.");
-            Serial.println("X - Echo back current value of switch register");
+            Serial.println("L OOOO - Load address. For octal digits.");
+            Serial.println("D OOOO - Deposit to memory given by Load address. Four octal digits");
+            Serial.println("E OOOO - Extended address load.");
+            Serial.println("R - Run.");
+            Serial.println("I - Initialize.");
+            Serial.println("T - Trace.");
             Serial.println();
             Serial.print("PDP8CONSOLE> " );
             break;
@@ -431,6 +415,17 @@ if (Serial.available()> 0) {
           hexValue |= (7 & tmp);
           Serial.println();
           SwitchRegister(hexValue);
+          switch (cmd) {
+            case 'L':
+              AddresLoad();
+              break;
+            case 'D':              
+              Deposit();
+              break;
+            case 'E':
+              ExtendedAddressLoad();
+              break;
+          }
         }
         else {
           Serial.println("Invalid octal digit");
