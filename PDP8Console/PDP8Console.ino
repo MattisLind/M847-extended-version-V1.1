@@ -85,11 +85,13 @@ void Deposit()
     digitalWrite (w_KEY_CONTROL     , HIGH)    ; 
     digitalWrite (Show_Data         , HIGH)    ; 
     digitalWrite (w_MS_IR_DISABLE   , HIGH)    ;
+    digitalWrite (Dip_1             , HIGH)    ; // BRK DATA has to be high.    
     Trigger_Mem_Start ();
     digitalWrite (Set_Flip_Flop     , LOW)     ; 
     digitalWrite (w_KEY_CONTROL     , LOW)     ;
     digitalWrite (Show_Data         , LOW)     ;
     digitalWrite (w_MS_IR_DISABLE   , LOW)     ;
+    digitalWrite (Dip_1             , LOW)     ; // BRK DATA has to be high.    
     
   }
 
@@ -103,13 +105,15 @@ void AddresLoad()
     digitalWrite (w_MS_IR_DISABLE   , HIGH)    ; // get machine ready to receive an address 
     digitalWrite (Set_Flip_Flop     , HIGH)    ; // get machine ready to receive an address 
     digitalWrite (Show_Data         , HIGH)    ;                                            
-    digitalWrite (Exam              , HIGH)    ;                                            
+    digitalWrite (Exam              , HIGH)    ; 
+    digitalWrite (Dip_1             , LOW)     ; // BRK DATA has to be high.                                           
     Trigger_Adres_Latch ();
     digitalWrite (w_LA_ENABLE       , LOW)     ; // get machine out of address latch mode
     digitalWrite (w_MS_IR_DISABLE   , LOW)     ; // get machine out of address latch mode
     digitalWrite (Set_Flip_Flop     , LOW)     ; // get machine out of address latch mode
     digitalWrite (Show_Data         , LOW)     ;
     digitalWrite (Exam              , LOW)     ;
+    digitalWrite (Dip_1             , HIGH)    ; // BRK DATA has to be high.    
   }
 
 
@@ -222,14 +226,14 @@ void setup ()
 
   pinMode (r_RUN                  , INPUT)  ; // read RUN signal from Omnibus
   pinMode (r_SW                   , INPUT)  ; // read SW signal from Omnibus
-  pinMode (Dip_1                  , INPUT)  ; // Default bootprogam select for one time toggeling SW
+  pinMode (Dip_1                  , OUTPUT)  ; // Default bootprogam select for one time toggeling SW
   pinMode (Dip_2                  , INPUT)  ; // Default bootprogam select for one time toggeling SW 
   pinMode (Dip_3                  , INPUT)  ; // Default bootprogam select for one time toggeling SW
   pinMode (Dip_4                  , INPUT)  ; // Default bootprogam select for one time toggeling SW
 
   digitalWrite (r_RUN             , HIGH)   ; // turn on pull up
   digitalWrite (r_SW              , HIGH)   ; // turn on pull up
-  digitalWrite (Dip_1             , HIGH)   ; // turn on pull up
+  digitalWrite (Dip_1             , LOW)   ; // turn on pull up
   digitalWrite (Dip_2             , HIGH)   ; // turn on pull up
   digitalWrite (Dip_3             , HIGH)   ; // turn on pull up
   digitalWrite (Dip_4             , HIGH)   ; // turn on pull up
@@ -250,7 +254,7 @@ void setup ()
   digitalWrite (w_LA_ENABLE       , LOW)    ; // Write zero before initializing output
   digitalWrite (w_MS_IR_DISABLE   , LOW)    ; // Write zero before initializing output
   digitalWrite (w_KEY_CONTROL     , LOW)    ; // Write zero before initializing output
-
+  
   pinMode (Set_Flip_Flop          , OUTPUT) ; // Set to output mode
   pinMode (Show_Data              , OUTPUT) ; // Set to output mode
   pinMode (Exam                   , OUTPUT) ; // Set to output mode
