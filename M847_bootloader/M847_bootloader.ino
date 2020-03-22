@@ -90,7 +90,8 @@ void setup ()
   #define Dip_2                   11          // PB3
   #define Dip_3                   12          // PB4
   #define Dip_4                   13          // PB5
-
+  #define BRK_DATA                10          // PB2
+  
   #define w_INITIALIZE_H          A0          // PC0 for 400nS pulse
   #define w_PULSE_LA_H            A1          // PC1 for 400nS pulse
   #define w_MEM_START             A2          // PC2 for 400nS pulse
@@ -105,7 +106,7 @@ void setup ()
 
   pinMode (r_RUN                  , INPUT)  ; // read RUN signal from Omnibus
   pinMode (r_SW                   , INPUT)  ; // read SW signal from Omnibus
-  pinMode (Dip_1                  , INPUT)  ; // Default bootprogam select for one time toggeling SW
+  //pinMode (Dip_1                  , INPUT)  ; // Default bootprogam select for one time toggeling SW
   pinMode (Dip_2                  , INPUT)  ; // Default bootprogam select for one time toggeling SW 
   pinMode (Dip_3                  , INPUT)  ; // Default bootprogam select for one time toggeling SW
   pinMode (Dip_4                  , INPUT)  ; // Default bootprogam select for one time toggeling SW
@@ -430,6 +431,8 @@ void UndoSingleStep()
 void Deposit()
   {
     Serial.println("Deposit");
+    pinMode      (BRK_DATA          , OUTPUT) ; // Set to output mode
+    digitalWrite (BRK_DATA          , HIGH)     ;   
     digitalWrite (Set_Flip_Flop     , HIGH)    ;
     digitalWrite (w_KEY_CONTROL     , HIGH)    ; 
     digitalWrite (Show_Data         , HIGH)    ; 
@@ -439,7 +442,8 @@ void Deposit()
     digitalWrite (w_KEY_CONTROL     , LOW)     ;
     digitalWrite (Show_Data         , LOW)     ;
     digitalWrite (w_MS_IR_DISABLE   , LOW)     ;
-    
+    digitalWrite (BRK_DATA          , LOW)    ; 
+    pinMode      (BRK_DATA          , INPUT) ; // Set to output mode    
   }
 
 
@@ -449,6 +453,8 @@ void Deposit()
 void AddresLoad()
   {
     Serial.println("Addres Load");
+    pinMode      (BRK_DATA          , OUTPUT) ; // Set to output mode
+    digitalWrite (BRK_DATA          , LOW)     ;   
     digitalWrite (w_LA_ENABLE       , HIGH)    ; // get machine ready to receive an address 
     digitalWrite (w_MS_IR_DISABLE   , HIGH)    ; // get machine ready to receive an address 
     digitalWrite (Set_Flip_Flop     , HIGH)    ; // get machine ready to receive an address 
@@ -460,6 +466,8 @@ void AddresLoad()
     digitalWrite (Set_Flip_Flop     , LOW)     ; // get machine out of address latch mode
     digitalWrite (Show_Data         , LOW)     ;
     digitalWrite (Exam              , LOW)     ;
+    digitalWrite (BRK_DATA          , HIGH)    ; 
+    pinMode      (BRK_DATA          , INPUT) ; // Set to output mode
   }
 
 
@@ -470,6 +478,8 @@ void AddresLoad()
 void ExtendedAddressLoad()
   {
     Serial.println("Extended Memory Address Load");
+    pinMode      (BRK_DATA          , OUTPUT) ; // Set to output mode
+    digitalWrite (BRK_DATA          , HIGH)     ;  
     digitalWrite (w_LA_ENABLE       , HIGH)    ; // get machine ready to receive an extended address  
     digitalWrite (w_KEY_CONTROL     , HIGH)    ; // get machine ready to receive an extended address  
     digitalWrite (Set_Flip_Flop     , HIGH)    ; // get machine ready to receive an extended address  
@@ -479,6 +489,8 @@ void ExtendedAddressLoad()
     digitalWrite (w_KEY_CONTROL     , LOW)     ; // get machine out of extended address latch mode
     digitalWrite (Set_Flip_Flop     , LOW)     ; // get machine out of extended address latch mode
     digitalWrite (Show_Data         , LOW)     ;
+    digitalWrite (BRK_DATA          , LOW)    ; 
+    pinMode      (BRK_DATA          , INPUT) ; // Set to output mode
   }
 
 
