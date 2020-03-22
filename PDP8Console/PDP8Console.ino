@@ -338,6 +338,10 @@ if (Serial.available()> 0) {
             Continue();
             Serial.print("PDP8CONSOLE> " );
             break;
+          case 'H': // Halt
+            printPrompt(tmp);
+            SingleStep();
+            break;
           case 'T': // Trace - single step
             printPrompt(tmp);
             SingleStep();
@@ -352,15 +356,16 @@ if (Serial.available()> 0) {
             cmdState=1;
             cmd = tmp;
             break;
-          case 'H':
+          case '?':
             Serial.println();
             Serial.println("PDP8CONSOLE HELP");
             Serial.println("=======================");
-            Serial.println("H - HELP");
+            Serial.println("? - HELP");
             Serial.println("L OOOO - Load address. For octal digits.");
             Serial.println("D OOOO - Deposit to memory given by Load address. Four octal digits");
             Serial.println("E OOOO - Extended address load.");
             Serial.println("R - Run.");
+            Serial.println("H - Halt.");
             Serial.println("I - Initialize.");
             Serial.println("T - Trace.");
             Serial.println();
