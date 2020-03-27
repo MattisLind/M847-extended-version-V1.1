@@ -10,7 +10,7 @@ class Protocol {
     void (* processCmd) (char, char, char);
     void (* requestTimeout) ( void (Protocol::*) (), int);
     void (* commandDone) (int);
-    char protocolState = 0; 
+    char protocolState; 
     char dataBuf [2];
     char sendBuf[2];
     int sendLen;
