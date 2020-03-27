@@ -1,6 +1,6 @@
 
 
-
+#include <stdio.h>
 #include "protocol.h"
 
 Protocol::Protocol ( void (* s) (char), void (* p) (char, char, char), void (* r ) ( void (Protocol::*) (), int ), void (* c) (int) ) {
@@ -22,16 +22,17 @@ void Protocol::timeOut() {
       sendCommand();  // resend if timeout      
     } else {
       commandDone(1); 
+      sendingInProgress=false;
     }
   }
 }
 
 void Protocol::sendCommand() {
   int i;
+  numResend++;
   for (i=0; i< sendLen; i++) {
     sendByte(sendBuf[i]);  
   }
-  numResend++;
 }
 
 
@@ -44,6 +45,7 @@ bool Protocol::doCommand(char command, char * data, char len, int maxRes) {
     return false; 
   }
   maxResend = maxRes;
+  numResend = -1;
   sendingInProgress = true;
   sendBuf[0] = command & 0x3f;
   sum = 0x3f & command;
@@ -51,14 +53,16 @@ bool Protocol::doCommand(char command, char * data, char len, int maxRes) {
     sum+= 0x3f & data[i];
     sendBuf[i+1]=  (data[i] & 0x3f ) | 0x40;
   }
-  sendBuf[i+1] = (~sum & 0x3f) | 0x80;
+  sendBuf[i+1] = (-sum & 0x3f) | 0x80;
   sendLen = len+2;
+  sendCommand();
   requestTimeout(&Protocol::timeOut, 500);
   return true;
 }
 
 void Protocol::processProtocol(char tmp) {
   data = tmp & 0x3f;
+  printf ("processProtocol: tmp=%02X data=%02X ", 0xff & tmp, 0xff & data);
   switch (tmp & 0xc0) {
     case 0x00:
       // We got a command
@@ -72,6 +76,7 @@ void Protocol::processProtocol(char tmp) {
       if (protocolState == 1) {
         if (cnt < 2) { 
           dataBuf[cnt] = data;
+          cnt++;
           sum += data;
         } else {
           protocolState = 0;
@@ -85,7 +90,8 @@ void Protocol::processProtocol(char tmp) {
     case 0x80:
       if (protocolState == 1) {
         sum += data;
-        if (sum == 0) {
+        printf("sum=%02X ", 0xff & sum);
+        if ((0x3f & sum) == 0) {
           sendAck();  
           processCmd (command, dataBuf[0], dataBuf[1]);           
         } else {
@@ -100,16 +106,19 @@ void Protocol::processProtocol(char tmp) {
     case 0xc0:
       switch (data) {
         case 0x00: // NAK received
+          printf ("numResend= %d", numResend);
           if (numResend < maxResend) {
             sendCommand();  // resend if timeout      
           } else {
-            commandDone(1); 
+            commandDone(1);
+	    sendingInProgress=false;
           }
           break;
         case 0x01: // ACK received
-          break;
           sendLen=0;
-          commandDone(0); 
+          commandDone(0);
+	  sendingInProgress=false;
+          break; 
       }
       break;
   }  
