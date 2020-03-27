@@ -338,13 +338,40 @@ void sendByte(char data) {
   Serial.write(data);
 }
 
+typedef  void (Protocol::* TimeoutFn)();
 
-class Protocol protocol (sendByte, processCmd); 
+TimeoutFn timeoutFn;
+int  timeout;
+unsigned long previousMillis;
+void handleTimeout ( void (Protocol::* t) (), int ms) {
+
+  timeoutFn = t;
+  previousMillis = millis();
+}
 
 
+#define CALL_MEMBER_FN(object,ptrToMember)  ((object).*(ptrToMember))
+
+
+void commandDone(int status) {
+
+}
+
+
+class Protocol protocol (sendByte, processCmd, handleTimeout, commandDone); 
+
+void checkTimeout() {
+  if (timeout > 0) {
+    if ((unsigned long)(millis() - previousMillis) >= timeout) {
+      timeout = -1;
+      CALL_MEMBER_FN(protocol,timeoutFn)();
+    }
+  }  
+}
 
 void loop() {
   char tmp;
+  checkTimeout();
   if (Serial.available()> 0) {
     tmp = Serial.read();
     protocol.processProtocol (tmp); 
