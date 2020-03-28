@@ -48,6 +48,8 @@ void processBCmd(char command, char msb, char lsb) {
     assert(lsb==0);
     break;
   case 1:
+  case 2:
+  case 3:
     assert(command == 2);
     assert(msb==3);
     assert(lsb==4);
@@ -65,6 +67,7 @@ void aToB(char data) {
   switch (test) {
   case 0:
   case 1:
+  case 4:
     protocolB.processProtocol(data);
     break;
   case 2:
@@ -73,6 +76,13 @@ void aToB(char data) {
     }
     protocolB.processProtocol(data);
     byteCnt++;
+    break;
+  case 3:
+    if (byteCnt!=2) {
+      protocolB.processProtocol(data);
+    }
+    byteCnt++;
+    break;
   }
 }
 
@@ -83,18 +93,25 @@ void bToA(char data) {
   case 0:
   case 1:
   case 2:
+  case 3:
     protocolA.processProtocol(data);
     break;
+  case 4:
+    if (byteCnt != 0) {
+      protocolA.processProtocol(data);
+    }
+    byteCnt++;
   }
 
 
 }
 
 TimeoutFn timeoutFn;
-
+int timeout;
 
 void handleTimeout ( void (Protocol::* t) (), int ms) {
   timeoutFn = t;
+  timeout = ms;
   printf("Timeout called.\n");
 }
 
@@ -133,4 +150,13 @@ int main () {
   byteCnt=0;
   printf ("TEST %d \n", test);
   protocolA.doCommand(2,testData , 2, 1);
+  test = 3;  // lose one byte
+  byteCnt=0;
+  printf ("TEST %d \n", test);
+  protocolA.doCommand(2,testData , 2, 1);
+  test = 4;  // lose one byte
+  byteCnt=0;
+  printf ("TEST %d \n", test);
+  protocolA.doCommand(2,testData , 2, 1);
+  CALL_MEMBER_FN(protocolA,timeoutFn)();
 }

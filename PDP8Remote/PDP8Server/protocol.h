@@ -16,13 +16,15 @@ class Protocol {
     int sendLen;
     int numResend;
     int maxResend;
+    bool txEven;
+    bool rxEven;
     unsigned char sum;
     char command;
     char cnt;
     char data; 
     bool sendingInProgress;
     void sendNak();
-    void sendAck();
+    void sendAck(bool);
     void sendCommand();
     void timeOut ();
   public:

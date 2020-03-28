@@ -6,14 +6,16 @@
 Protocol::Protocol ( void (* s) (char), void (* p) (char, char, char), void (* r ) ( void (Protocol::*) (), int ), void (* c) (int) ) {
    sendByte = s; processCmd = p; requestTimeout = r; commandDone = c;
    protocolState = 0;
+   txEven = true;
+   rxEven = true;
 }
 
 void Protocol::sendNak() {
   sendByte(0xc0);
 }
 
-void Protocol::sendAck() {  
-  sendByte(0xc1);
+void Protocol::sendAck(bool even) {  
+  sendByte(0xc1 | (even?0x20:0x00));
 }
 
 void Protocol::timeOut() {
@@ -47,7 +49,11 @@ bool Protocol::doCommand(char command, char * data, char len, int maxRes) {
   maxResend = maxRes;
   numResend = -1;
   sendingInProgress = true;
-  sendBuf[0] = command & 0x3f;
+  sendBuf[0] = command & 0x1f;
+  if (txEven) {
+    sendBuf[0] |= 0x20; // set the even bit
+    txEven = false; // next packet is an odd packet.
+  } 
   sum = 0x3f & command;
   for (i=0; i<len; i++) {
     sum+= 0x3f & data[i];
@@ -92,8 +98,18 @@ void Protocol::processProtocol(char tmp) {
         sum += data;
         printf("sum=%02X ", 0xff & sum);
         if ((0x3f & sum) == 0) {
-          sendAck();  
-          processCmd (command, dataBuf[0], dataBuf[1]);           
+          sendAck(rxEven);
+	  if (rxEven) {
+	    if ((command & 0x20) == 1) {
+	      processCmd (command, dataBuf[0], dataBuf[1]);
+	      rxEven = false;
+	    }
+	  } else {
+	    if ((command & 0x20) == 0) {
+	      processCmd (command, dataBuf[0], dataBuf[1]);           
+	      rxEven = true;
+	    }
+	  }
         } else {
           protocolState = 0;
           sendNak();                    
@@ -114,10 +130,19 @@ void Protocol::processProtocol(char tmp) {
 	    sendingInProgress=false;
           }
           break;
-        case 0x01: // ACK received
-          sendLen=0;
-          commandDone(0);
-	  sendingInProgress=false;
+        case 0x21: // even ACK received
+	  if (txEven) { // If we sent an even pack we should receive an even ack
+	    sendLen=0;
+	    commandDone(0);
+	    sendingInProgress=false;
+	  }
+        case 0x01: // odd ACK received
+	  if (!txEven) { // if we sent an odd packet we should receive an odd ack
+	    sendLen=0;
+	    commandDone(0);
+	    sendingInProgress=false;
+	  }
+
           break; 
       }
       break;
