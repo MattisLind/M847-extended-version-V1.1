@@ -29,40 +29,25 @@ class Protocol protocolB(bToA, processBCmd, handleTimeout, commandBDone);
 
 void processACmd(char command, char msb, char lsb) {
   printf ("A Received command %02X msb=%02X lsb=%02X", 0xff & command, 0xff & msb, 0xff & lsb);
-
-  switch (test) {
-  case 0:
-    break;
-  case 1:
-    break;
-  }
-
 }
+
+char gCommand;
+char gMsb;
+char gLsb;
+
 void processBCmd(char command, char msb, char lsb) {
   printf ("B Received command %02X msb=%02X lsb=%02X", 0xff & command, 0xff & msb, 0xff & lsb);
 
-  switch (test) {
-  case 0:
-    assert(command == 1);
-    assert(msb==0);
-    assert(lsb==0);
-    break;
-  case 1:
-  case 2:
-  case 3:
-    assert(command == 2);
-    assert(msb==3);
-    assert(lsb==4);
-    break;
-  }
-
-
+  gCommand = command;
+  gMsb = msb;
+  gLsb = lsb;
+  
 }
 
 int byteCnt;
 
 void aToB(char data) {
-  printf ("aToB:%02X ", 0xff & data);
+  printf ("aToB:%02X \n", 0xff & data);
 
   switch (test) {
   case 0:
@@ -87,7 +72,7 @@ void aToB(char data) {
 }
 
 void bToA(char data) {
-  printf ("bToA:%02X ", 0xff & data);
+  printf ("bToA:%02X \n", 0xff & data);
 
   switch (test) {
   case 0:
@@ -116,47 +101,61 @@ void handleTimeout ( void (Protocol::* t) (), int ms) {
 }
 
 
-void commandADone(int status) {
-  switch (test) {
-  case 0:
-    break;
-  case 1:
-    break;
-  }
+bool commandADoneV;
 
-  printf("A DONE"); 
+void commandADone(int status) {
+  printf("A DONE\n"); 
+  commandADoneV = true;
 }
 
 void commandBDone(int status) {
-  switch (test) {
-  case 0:
-    break;
-  case 1:
-    break;
-  }
-  printf("B DONE"); 
+  printf("B DONE\n"); 
 }
 
 char testData [] =  {3,4};
 
 int main () {
   test = 0;
-  printf ("TEST %d \n", test);
+  printf ("TEST %d A message with just the command.\n", test);
   protocolA.doCommand(1, NULL, 0, 1);
+  assert(gCommand == 1);
+  assert(gMsb==0);
+  assert(gLsb==0);
+  assert(commandADoneV == true);
+
   test = 1;
-  printf ("TEST %d \n", test);
+  printf ("TEST %d A message with two data bytes. \n", test);
   protocolA.doCommand(2,testData , 2, 1);
+  assert(gCommand == 2);
+  assert(gMsb==3);
+  assert(gLsb==4);
+  assert(commandADoneV == true);
+
   test = 2;  // mangle one byte
   byteCnt=0;
-  printf ("TEST %d \n", test);
+  printf ("TEST %d One bit in the message is wrong. \n", test);
   protocolA.doCommand(2,testData , 2, 1);
+  assert(gCommand == 2);
+  assert(gMsb==3);
+  assert(gLsb==4);
+  assert(commandADoneV == true);
+
   test = 3;  // lose one byte
   byteCnt=0;
-  printf ("TEST %d \n", test);
+  printf ("TEST %d One byte in the message is lost. \n", test);
   protocolA.doCommand(2,testData , 2, 1);
-  test = 4;  // lose one byte
+  assert(gCommand == 2);
+  assert(gMsb==3);
+  assert(gLsb==4);
+  assert(commandADoneV == true);
+
+  test = 4;  // lose the ACK
   byteCnt=0;
-  printf ("TEST %d \n", test);
+  printf ("TEST %d The first ACK is lost\n", test);
   protocolA.doCommand(2,testData , 2, 1);
   CALL_MEMBER_FN(protocolA,timeoutFn)();
+  assert(gCommand == 2);
+  assert(gMsb==3);
+  assert(gLsb==4);
+  assert(commandADoneV == true);
 }

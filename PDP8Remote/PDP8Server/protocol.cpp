@@ -54,7 +54,7 @@ bool Protocol::doCommand(char command, char * data, char len, int maxRes) {
     sendBuf[0] |= 0x20; // set the even bit
     txEven = false; // next packet is an odd packet.
   } 
-  sum = 0x3f & command;
+  sum = 0x3f & sendBuf[0];
   for (i=0; i<len; i++) {
     sum+= 0x3f & data[i];
     sendBuf[i+1]=  (data[i] & 0x3f ) | 0x40;
@@ -99,14 +99,15 @@ void Protocol::processProtocol(char tmp) {
         printf("sum=%02X ", 0xff & sum);
         if ((0x3f & sum) == 0) {
           sendAck(rxEven);
+	  printf ("command = %02X\n", command & 0xff);
 	  if (rxEven) {
-	    if ((command & 0x20) == 1) {
-	      processCmd (command, dataBuf[0], dataBuf[1]);
+	    if ((command & 0x20) == 0x20) {
+	      processCmd (0x1f & command, dataBuf[0], dataBuf[1]);
 	      rxEven = false;
 	    }
 	  } else {
 	    if ((command & 0x20) == 0) {
-	      processCmd (command, dataBuf[0], dataBuf[1]);           
+	      processCmd (0x1f & command, dataBuf[0], dataBuf[1]);           
 	      rxEven = true;
 	    }
 	  }
