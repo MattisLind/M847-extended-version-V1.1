@@ -67,7 +67,6 @@ bool Protocol::doCommand(char command, char * data, char len, int maxRes) {
 
 void Protocol::processProtocol(char tmp) {
   data = tmp & 0x3f;
-  printf ("processProtocol: tmp=%02X data=%02X ", 0xff & tmp, 0xff & data);
   switch (tmp & 0xc0) {
     case 0x00:
       // We got a command
@@ -93,9 +92,7 @@ void Protocol::processProtocol(char tmp) {
     case 0x80:
       if (protocolState == 1) {
         sum += data;
-        printf("sum=%02X ", 0xff & sum);
         if ((0x3f & sum) == 0) {
-	  printf ("command = %02X\n", command & 0xff);
 	  if ((command & 0x20) == 0x20) {
 	    sendAck(true);
 	  } else {
@@ -114,10 +111,8 @@ void Protocol::processProtocol(char tmp) {
       }
       break;
     case 0xc0:
-      printf ("txEven=%s data=%02X\n", txEven?"true":"false", data);
       switch (data) {
         case 0x00: // NAK received
-          printf ("numResend= %d", numResend);
           if (numResend < maxResend) {
             sendCommand();  // resend if timeout      
           } else {

@@ -84,6 +84,22 @@ void aToB(char data) {
     }
     byteCnt++;
     break;
+  case 7:
+    if (byteCnt==1) {
+      aToBBuffer.writeBuffer(data^0x80);
+    } else {
+      aToBBuffer.writeBuffer(data);
+    }
+    byteCnt++;
+    break;
+  case 8:
+    if (byteCnt==3) {
+      aToBBuffer.writeBuffer(data^0x80);
+    } else {
+      aToBBuffer.writeBuffer(data);
+    }
+    byteCnt++;
+    break;
   }
 }
 
@@ -97,6 +113,8 @@ void bToA(char data) {
   case 3:
   case 100:
   case 6:
+  case 7:
+  case 8:
     bToABuffer.writeBuffer(data);
     break;
   case 4:
@@ -555,6 +573,180 @@ int main () {
   processBCmdCnt=0;
   commandADoneV=0;
   printf ("TEST %d a high bit is changed in the command word.\n", test);
+  res = protocolA.doCommand(2,testData , 2, 1);
+  assert(res == true);
+
+  while (!aToBBuffer.isBufferEmpty() || !bToABuffer.isBufferEmpty()) {
+    if (!aToBBuffer.isBufferEmpty()) {
+      protocolB.processProtocol(aToBBuffer.readBuffer());    
+    }
+    if (!bToABuffer.isBufferEmpty()) {
+      protocolA.processProtocol(bToABuffer.readBuffer());    
+    }
+    if (!aToBBuffer.isBufferEmpty()) {
+      protocolB.processProtocol(aToBBuffer.readBuffer());    
+    }
+    if (!bToABuffer.isBufferEmpty()) {
+      protocolA.processProtocol(bToABuffer.readBuffer());    
+    }
+  }
+
+
+  CALL_MEMBER_FN(protocolA,timeoutFn)();
+
+  while (!aToBBuffer.isBufferEmpty() || !bToABuffer.isBufferEmpty()) {
+    if (!aToBBuffer.isBufferEmpty()) {
+      protocolB.processProtocol(aToBBuffer.readBuffer());    
+    }
+    if (!bToABuffer.isBufferEmpty()) {
+      protocolA.processProtocol(bToABuffer.readBuffer());    
+    }
+    if (!aToBBuffer.isBufferEmpty()) {
+      protocolB.processProtocol(aToBBuffer.readBuffer());    
+    }
+    if (!bToABuffer.isBufferEmpty()) {
+      protocolA.processProtocol(bToABuffer.readBuffer());    
+    }
+  }
+
+
+  assert(gCommand == 2);
+  assert(gMsb==3);
+  assert(gLsb==4);
+  assert(commandADoneV == 1);
+  assert(processBCmdCnt == 1);
+
+
+  printf ("\n-----------------------------------------\n");
+  test = 100;
+  printf ("TEST %d A message with just the command.\n", test);
+  gCommand = 0;
+  gMsb = 0;
+  gLsb = 0;
+  commandADoneV=0;
+  processBCmdCnt=0;
+  res = protocolA.doCommand(1, NULL, 0, 1);
+
+  while (!aToBBuffer.isBufferEmpty() || !bToABuffer.isBufferEmpty()) {
+    if (!aToBBuffer.isBufferEmpty()) {
+      protocolB.processProtocol(aToBBuffer.readBuffer());    
+    }
+    if (!bToABuffer.isBufferEmpty()) {
+      protocolA.processProtocol(bToABuffer.readBuffer());    
+    }
+    if (!aToBBuffer.isBufferEmpty()) {
+      protocolB.processProtocol(aToBBuffer.readBuffer());    
+    }
+    if (!bToABuffer.isBufferEmpty()) {
+      protocolA.processProtocol(bToABuffer.readBuffer());    
+    }
+  }
+
+
+  assert(gCommand == 1);
+  assert(commandADoneV == 1);
+  assert(res == true);
+  assert(processBCmdCnt == 1);
+
+
+
+
+
+  printf ("\n-----------------------------------------\n");
+  test = 7;  // A high bit is changed in the command word
+  gCommand = 0;
+  gMsb = 0;
+  gLsb = 0;
+  byteCnt=0;
+  processBCmdCnt=0;
+  commandADoneV=0;
+  printf ("TEST %d a high bit is changed in the data word.\n", test);
+  res = protocolA.doCommand(2,testData , 2, 1);
+  assert(res == true);
+
+  while (!aToBBuffer.isBufferEmpty() || !bToABuffer.isBufferEmpty()) {
+    if (!aToBBuffer.isBufferEmpty()) {
+      protocolB.processProtocol(aToBBuffer.readBuffer());    
+    }
+    if (!bToABuffer.isBufferEmpty()) {
+      protocolA.processProtocol(bToABuffer.readBuffer());    
+    }
+    if (!aToBBuffer.isBufferEmpty()) {
+      protocolB.processProtocol(aToBBuffer.readBuffer());    
+    }
+    if (!bToABuffer.isBufferEmpty()) {
+      protocolA.processProtocol(bToABuffer.readBuffer());    
+    }
+  }
+
+
+  CALL_MEMBER_FN(protocolA,timeoutFn)();
+
+  while (!aToBBuffer.isBufferEmpty() || !bToABuffer.isBufferEmpty()) {
+    if (!aToBBuffer.isBufferEmpty()) {
+      protocolB.processProtocol(aToBBuffer.readBuffer());    
+    }
+    if (!bToABuffer.isBufferEmpty()) {
+      protocolA.processProtocol(bToABuffer.readBuffer());    
+    }
+    if (!aToBBuffer.isBufferEmpty()) {
+      protocolB.processProtocol(aToBBuffer.readBuffer());    
+    }
+    if (!bToABuffer.isBufferEmpty()) {
+      protocolA.processProtocol(bToABuffer.readBuffer());    
+    }
+  }
+
+
+  assert(gCommand == 2);
+  assert(gMsb==3);
+  assert(gLsb==4);
+  assert(commandADoneV == 1);
+  assert(processBCmdCnt == 1);
+
+
+  printf ("\n-----------------------------------------\n");
+  test = 100;
+  printf ("TEST %d A message with just the command.\n", test);
+  gCommand = 0;
+  gMsb = 0;
+  gLsb = 0;
+  commandADoneV=0;
+  processBCmdCnt=0;
+  res = protocolA.doCommand(1, NULL, 0, 1);
+
+  while (!aToBBuffer.isBufferEmpty() || !bToABuffer.isBufferEmpty()) {
+    if (!aToBBuffer.isBufferEmpty()) {
+      protocolB.processProtocol(aToBBuffer.readBuffer());    
+    }
+    if (!bToABuffer.isBufferEmpty()) {
+      protocolA.processProtocol(bToABuffer.readBuffer());    
+    }
+    if (!aToBBuffer.isBufferEmpty()) {
+      protocolB.processProtocol(aToBBuffer.readBuffer());    
+    }
+    if (!bToABuffer.isBufferEmpty()) {
+      protocolA.processProtocol(bToABuffer.readBuffer());    
+    }
+  }
+
+
+  assert(gCommand == 1);
+  assert(commandADoneV == 1);
+  assert(res == true);
+  assert(processBCmdCnt == 1);
+
+
+
+  printf ("\n-----------------------------------------\n");
+  test = 8;  // A high bit is changed in the sum word
+  gCommand = 0;
+  gMsb = 0;
+  gLsb = 0;
+  byteCnt=0;
+  processBCmdCnt=0;
+  commandADoneV=0;
+  printf ("TEST %d a high bit is changed in the sum word.\n", test);
   res = protocolA.doCommand(2,testData , 2, 1);
   assert(res == true);
 
