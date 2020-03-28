@@ -15,6 +15,31 @@
 #include <termios.h>
 #include <unistd.h>
 #include <stdbool.h>
+#include <time.h>
+#include "../PDP8Server/protocol.h"
+
+int fd; // fd of the serial port is global
+
+void processCmd(char command, char lsb, char msb) {
+  // Nothing much shall come from the Server really.
+}
+
+void sendSerialChar(char ch) {
+  write (fd, &ch, 1);
+}
+
+typedef  void (Protocol::* TimeoutFn)();
+
+void handleTimeout ( void (Protocol::* ) (), int);
+
+void commandDone(int status) {
+  if (state == 0 && status == 0) {
+    state = 1; // When in state 0 and receiving an ack it means that we goa a positive response on the NOP
+  }
+
+}
+
+class Protocol protocolHandler(sendSerialChar, processCmd, handleTimeout, commandDone);
 
 // Define control codes and bit masks
 #define CC_LEAD         0x80
@@ -212,76 +237,179 @@ void capture_bin(FILE *f, enum captureState_e *state, unsigned char c)
   }
 }
 
-void print_usage(char *name)
-{
-  fprintf(stdout, "Usage:\n");
-  fprintf(stdout, "%s --[arg] [output filename]\n", name);
-  fprintf(stdout, "  --bin   Capture binary format\n");
-  fprintf(stdout, "  --rim   Capture rim format\n");
-  fprintf(stdout, "  --raw   Capture all bytes, no check\n");
+int open_serial (char * device) {
+      fd = open(device, O_RDWR | O_NOCTTY | O_NDELAY);
+      if (fd < 0) return -1;
+
+      /* Baudrate 115200, 8 bits, no parity, 1 stop bit */
+      if (set_interface_attribs(fd, B115200) < 0) {
+	exit(EXIT_FAILURE);
+      }  
 }
-  
+
+int start_address;
+int current_address;
+int run_address;
+int state;
+int tmp; 
+
+void processRimChar (char ch) {
+  int t = ch;
+  switch (state) {
+  case 0:
+    if (ch == 0x80) {
+      state = 1;
+    }
+    break;
+  case 1: // high address
+    if ((ch & 0x40) == 0x40) {
+      state = 2;
+      tmp = (0x3f & t) << 6;
+    } 
+    break;
+  case 2: // low address
+    state = 3; 
+    tmp |= 0x3f & ch;
+    if (++current_address != tmp) {
+      doLoadAddress(tmp);
+    }
+    break;
+  case 3: // high data
+    state = 4; 
+    tmp = (0x3f & t) << 6;
+    break;
+  case 4: // low data
+    state = 1;
+    tmp = 0x3f & t;
+    deposit(tmp);
+    break;
+  }
+}
+
+
+void processBinChar (char ch) {
+
+}
+
+
+void processRawChar (char ch) {
+  int t = ch;
+  switch (state) {
+  case 0:
+    tmp = (0x3f & t) << 6;
+    break;
+  case 1:
+    tmp = 0x3f & t;
+    deposit(tmp);
+    break;
+  }
+}
+
+
+int serial_available () {
+  int ret;
+  struct pollfd pollfd;
+  pollfd.fd = fd;
+  pollfd.events = POLLIN;
+  ret = poll(&pollfd, 1 , 10);
+  return ret; 
+} 
+
+
 
 int main(int argc, char **argv)
 {
-  char *portname = "/dev/ttyUSB0";
-  int fd;
+
   int wlen;
-  char *filename;
-  FILE *fCapture;
+  FILE *input_file;
   enum captureState_e state = CS_START;
   bool time_out = false;
   bool bin = false, rim = false, raw = false;
-  
-  if (argc != 2 && argc != 3) {
-    print_usage(argv[0]);
-    return -1;
+  int state=0;
+  int ch
+  while ((opt = getopt(argc, argv, "r:s:d:f:i:")) != -1) {
+    switch (opt) {
+    case 'i':
+      input_file = fopen (optarg, "r");
+      if (input_file == NULL) {
+	perror ("Failure opening file.");
+	exit(EXIT_FAILURE);
+      }
+      break;
+    case 's':
+      if (sscanf(otarg, "%4o",&start_address) != 1) {
+	fprintf(stderr, "Failed to parse the start address given. Requires an octal number.\n");
+	exit(EXIT_FAILURE);
+      } 
+      break;
+    case 'd':
+      if (open_serial(optarg)) {
+	fprintf(stderr, "Error opening device %s: %s\n", portname, strerror(errno));
+	exit(EXIT_FAILURE);	
+      }
+      break;
+    case 'f':
+      if (strncmp(optarg, "rim", 3)==0) {
+	rim = true;
+      }
+      else if (strncmp(optarg, "bin", 3)==0) {
+	bin = true;
+      }
+      else if (strncmp(optarg, "raw", 3)==0) {
+	raw = true;
+      } 
+      else { 
+	fprintf (stderr, "Format given is invalid. Can be wither rim, bin or raw.\n");
+      }
+      break;
+    case 'r':
+      if (sscanf(otarg, "%4o",&run_address) != 1) {
+	fprintf(stderr, "Failed to parse the start address given. Requires an octal number.\n");
+	exit(EXIT_FAILURE);
+      } 
+      break;
+    default: /* '?' */
+      fprintf(stderr, "Usage: %s [-i input-file -d serial-device -s start-address -f file-format (rim/bin/raw) -r run-address)]\n", argv[0]);
+      exit(EXIT_FAILURE);
+    }
   }
 
-  if (argc > 1) {
-    if (0 == strncmp(argv[1], "--bin", 5)) {
-      bin = true;
-    } else if (0 == strncmp(argv[1], "--rim", 5)) {
-      rim = true;
-    } else if (0 == strncmp(argv[1], "--raw", 5)) {
-      raw = true;
-    } else {
-      print_usage(argv[0]);
-      return -1;
-    }  
-  }
-  
-  // File name specified, otherwise use default "out.bin"
-  if (argc == 3) {
-    filename = argv[argc-1]; 
-  } else {
-    filename = "out.bin";
-  }
-  
-  fd = open(portname, O_RDWR | O_NOCTTY | O_SYNC);
-  if (fd < 0) {
-    fprintf(stderr, "Error opening device %s: %s\n", portname, strerror(errno));
-    return -1;
-  }
-
-  /* Baudrate 1200, 8 bits, no parity, 1 stop bit */
-  if (set_interface_attribs(fd, B115200) < 0) {
-    return -1;
-  }
-  
-  if ((fCapture = fopen(filename, "w")) == NULL) {
-    fprintf(stderr, "Could not write to file \"%s\": %s\n", filename, strerror(errno));
-    return -1;
-  }
-  
-  /* simple noncanonical input */
+  // send NOP to PDP8Server and wait for it to change state to connected  
+  protocolHandler.doCommand(0x00, NULL, 0); 
+  state = 0;
   do {
     unsigned char buf[80];
     int rdlen;
+    char tmp;
+    if (serial_available()) {
+      // process data coming from the PDP8Server
+      read(fd, &tmp, 1);
+      protocolHandler.processProtocol(tmp);
+    }
+    switch (state) {
+    case 0:
+      // Connecting - waiting 
+      break;
+    case 1:
+      if ((ch=fgetc(input_file)) != FEOF) {
+	// read one character from the file and process it according to filetype
+	if (rim) {
+	  processRimChar(ch);
+	} else if (bin) {
+	  processBinChar(ch);	  
+	} else if (raw) {
+	  processRawChar(ch);
+	}
+      }      
+      break;
+    case 2:
+      break;
+    }
+  } while (ch != FEOF && !connect_timeout);
+  close(fd);
+  fclose(input_file);
+}
 
-    rdlen = read(fd, buf, sizeof(buf) - 1);
-    if (rdlen > 0) {
-      unsigned char *p;
 
       for (p = buf; rdlen-- > 0; p++) {
         if (bin) capture_bin(fCapture, &state, *p);
@@ -295,8 +423,3 @@ int main(int argc, char **argv)
       fprintf(stderr, "Error from read: %d: %s\n", rdlen, strerror(errno));
       time_out = true;
     }
-  } while (state == CS_START ||
-           (state != CS_DONE && !time_out));
-  close(fd);
-  fclose(fCapture);
-}
