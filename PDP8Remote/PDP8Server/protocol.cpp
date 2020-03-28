@@ -52,8 +52,7 @@ bool Protocol::doCommand(char command, char * data, char len, int maxRes) {
   sendBuf[0] = command & 0x1f;
   if (txEven) {
     sendBuf[0] |= 0x20; // set the even bit
-    txEven = false; // next packet is an odd packet.
-  } 
+  }
   sum = 0x3f & sendBuf[0];
   for (i=0; i<len; i++) {
     sum+= 0x3f & data[i];
@@ -98,18 +97,15 @@ void Protocol::processProtocol(char tmp) {
         sum += data;
         printf("sum=%02X ", 0xff & sum);
         if ((0x3f & sum) == 0) {
-          sendAck(rxEven);
 	  printf ("command = %02X\n", command & 0xff);
-	  if (rxEven) {
-	    if ((command & 0x20) == 0x20) {
-	      processCmd (0x1f & command, dataBuf[0], dataBuf[1]);
-	      rxEven = false;
-	    }
+	  if ((command & 0x20) == 0x20) {
+	    sendAck(true);
 	  } else {
-	    if ((command & 0x20) == 0) {
-	      processCmd (0x1f & command, dataBuf[0], dataBuf[1]);           
-	      rxEven = true;
-	    }
+	    sendAck(false);
+	  }
+	  if ((rxEven && (command & 0x20)) || (!rxEven && ((command & 0x20) == 0x00) )) {
+	    processCmd (0x1f & command, dataBuf[0], dataBuf[1]);
+	    rxEven = !rxEven;
 	  }
         } else {
           protocolState = 0;
@@ -121,6 +117,7 @@ void Protocol::processProtocol(char tmp) {
       }
       break;
     case 0xc0:
+      printf ("txEven=%s data=%02X\n", txEven?"true":"false", data);
       switch (data) {
         case 0x00: // NAK received
           printf ("numResend= %d", numResend);
@@ -136,12 +133,15 @@ void Protocol::processProtocol(char tmp) {
 	    sendLen=0;
 	    commandDone(0);
 	    sendingInProgress=false;
+	    txEven = false;
 	  }
+	  break;
         case 0x01: // odd ACK received
 	  if (!txEven) { // if we sent an odd packet we should receive an odd ack
 	    sendLen=0;
 	    commandDone(0);
 	    sendingInProgress=false;
+	    txEven = true;
 	  }
 
           break; 
