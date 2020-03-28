@@ -85,11 +85,9 @@ void Protocol::processProtocol(char tmp) {
           sum += data;
         } else {
           protocolState = 0;
-          sendNak();
         }          
       } else {
         protocolState = 0;
-        sendNak();        
       }
       break;
     case 0x80:
@@ -109,11 +107,10 @@ void Protocol::processProtocol(char tmp) {
 	  }
         } else {
           protocolState = 0;
-          sendNak();                    
+	  sendNak();
         }
       } else {
         protocolState = 0;
-        sendNak();         
       }
       break;
     case 0xc0:

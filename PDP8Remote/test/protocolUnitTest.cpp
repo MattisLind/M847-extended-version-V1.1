@@ -1,12 +1,14 @@
 /*
 
- Compile using c++ protocolUnitTest.cpp ../PDP8Server/protocol.cpp -o protocolUnitTest
+ Compile using c++ protocolUnitTest.cpp ../PDP8Server/protocol.cpp RingBuffer.cpp -o protocolUnitTest
 
  */
 
 #include <assert.h>
 #include <stdio.h>
 #include "../PDP8Server/protocol.h"
+#include "RingBuffer.h"
+
 #define CALL_MEMBER_FN(object,ptrToMember)  ((object).*(ptrToMember))
 
 void processACmd(char, char, char);
@@ -18,6 +20,8 @@ void handleTimeout ( void (Protocol::* ) (), int);
 void commandADone(int);
 void commandBDone(int);
 
+class RingBuffer aToBBuffer; 
+class RingBuffer bToABuffer; 
 
 int test;
 
@@ -55,18 +59,28 @@ void aToB(char data) {
   case 0:
   case 1:
   case 4:
-    protocolB.processProtocol(data);
+  case 5:
+  case 100:
+    aToBBuffer.writeBuffer(data);
     break;
   case 2:
     if (byteCnt==2) {
       data |= 0x20;
     }
-    protocolB.processProtocol(data);
+    aToBBuffer.writeBuffer(data);
     byteCnt++;
     break;
   case 3:
     if (byteCnt!=2) {
-      protocolB.processProtocol(data);
+      aToBBuffer.writeBuffer(data);
+    }
+    byteCnt++;
+    break;
+  case 6:
+    if (byteCnt==0) {
+      aToBBuffer.writeBuffer(data^0x80);
+    } else {
+      aToBBuffer.writeBuffer(data);
     }
     byteCnt++;
     break;
@@ -81,13 +95,24 @@ void bToA(char data) {
   case 1:
   case 2:
   case 3:
-    protocolA.processProtocol(data);
+  case 100:
+  case 6:
+    bToABuffer.writeBuffer(data);
     break;
   case 4:
     if (byteCnt != 0) {
-      protocolA.processProtocol(data);
+      bToABuffer.writeBuffer(data);
     }
     byteCnt++;
+    break;
+  case 5:
+    if (byteCnt != 0) {
+      bToABuffer.writeBuffer(data);
+    } else {
+      bToABuffer.writeBuffer(data^0x20);
+    }
+    byteCnt++;
+    
   }
 
 
@@ -119,6 +144,10 @@ char testData [] =  {3,4};
 int main () {
   bool res;
 
+  aToBBuffer.initBuffer();
+  bToABuffer.initBuffer(); 
+ 
+
   printf ("\n-----------------------------------------\n");
   test = 0;
   printf ("TEST %d A message with just the command.\n", test);
@@ -128,9 +157,24 @@ int main () {
   commandADoneV=0;
   processBCmdCnt=0;
   res = protocolA.doCommand(1, NULL, 0, 1);
+
+  while (!aToBBuffer.isBufferEmpty() || !bToABuffer.isBufferEmpty()) {
+    if (!aToBBuffer.isBufferEmpty()) {
+      protocolB.processProtocol(aToBBuffer.readBuffer());    
+    }
+    if (!bToABuffer.isBufferEmpty()) {
+      protocolA.processProtocol(bToABuffer.readBuffer());    
+    }
+    if (!aToBBuffer.isBufferEmpty()) {
+      protocolB.processProtocol(aToBBuffer.readBuffer());    
+    }
+    if (!bToABuffer.isBufferEmpty()) {
+      protocolA.processProtocol(bToABuffer.readBuffer());    
+    }
+  }
+
+
   assert(gCommand == 1);
-  assert(gMsb==0);
-  assert(gLsb==0);
   assert(commandADoneV == 1);
   assert(res == true);
   assert(processBCmdCnt == 1);
@@ -144,12 +188,61 @@ int main () {
   processBCmdCnt=0;
   commandADoneV=0;
   res = protocolA.doCommand(2,testData , 2, 1);
+
+  while (!aToBBuffer.isBufferEmpty() || !bToABuffer.isBufferEmpty()) {
+    if (!aToBBuffer.isBufferEmpty()) {
+      protocolB.processProtocol(aToBBuffer.readBuffer());    
+    }
+    if (!bToABuffer.isBufferEmpty()) {
+      protocolA.processProtocol(bToABuffer.readBuffer());    
+    }
+    if (!aToBBuffer.isBufferEmpty()) {
+      protocolB.processProtocol(aToBBuffer.readBuffer());    
+    }
+    if (!bToABuffer.isBufferEmpty()) {
+      protocolA.processProtocol(bToABuffer.readBuffer());    
+    }
+  }
+
+
   assert(gCommand == 2);
   assert(gMsb==3);
   assert(gLsb==4);
   assert(commandADoneV == 1);
   assert(processBCmdCnt == 1);
   assert(res == true);
+
+  printf ("\n-----------------------------------------\n");
+  test = 100;
+  printf ("TEST %d A message with just the command.\n", test);
+  gCommand = 0;
+  gMsb = 0;
+  gLsb = 0;
+  commandADoneV=0;
+  processBCmdCnt=0;
+  res = protocolA.doCommand(1, NULL, 0, 1);
+
+  while (!aToBBuffer.isBufferEmpty() || !bToABuffer.isBufferEmpty()) {
+    if (!aToBBuffer.isBufferEmpty()) {
+      protocolB.processProtocol(aToBBuffer.readBuffer());    
+    }
+    if (!bToABuffer.isBufferEmpty()) {
+      protocolA.processProtocol(bToABuffer.readBuffer());    
+    }
+    if (!aToBBuffer.isBufferEmpty()) {
+      protocolB.processProtocol(aToBBuffer.readBuffer());    
+    }
+    if (!bToABuffer.isBufferEmpty()) {
+      protocolA.processProtocol(bToABuffer.readBuffer());    
+    }
+  }
+
+
+  assert(gCommand == 1);
+  assert(commandADoneV == 1);
+  assert(res == true);
+  assert(processBCmdCnt == 1);
+
 
   printf ("\n-----------------------------------------\n");
   test = 2;  // mangle one byte
@@ -161,12 +254,64 @@ int main () {
   commandADoneV=0;
   printf ("TEST %d One bit in the message is wrong. \n", test);
   res = protocolA.doCommand(2,testData , 2, 1);
+
+  while (!aToBBuffer.isBufferEmpty() || !bToABuffer.isBufferEmpty()) {
+    if (!aToBBuffer.isBufferEmpty()) {
+      protocolB.processProtocol(aToBBuffer.readBuffer());    
+    }
+    if (!bToABuffer.isBufferEmpty()) {
+      protocolA.processProtocol(bToABuffer.readBuffer());    
+    }
+    if (!aToBBuffer.isBufferEmpty()) {
+      protocolB.processProtocol(aToBBuffer.readBuffer());    
+    }
+    if (!bToABuffer.isBufferEmpty()) {
+      protocolA.processProtocol(bToABuffer.readBuffer());    
+    }
+  }
+
+
+
   assert(res == true);
   assert(gCommand == 2);
   assert(gMsb==3);
   assert(gLsb==4);
   assert(commandADoneV == 1);
   assert(processBCmdCnt == 1);
+
+
+  printf ("\n-----------------------------------------\n");
+  test = 100;
+  printf ("TEST %d A message with just the command.\n", test);
+  gCommand = 0;
+  gMsb = 0;
+  gLsb = 0;
+  commandADoneV=0;
+  processBCmdCnt=0;
+  res = protocolA.doCommand(1, NULL, 0, 1);
+
+  while (!aToBBuffer.isBufferEmpty() || !bToABuffer.isBufferEmpty()) {
+    if (!aToBBuffer.isBufferEmpty()) {
+      protocolB.processProtocol(aToBBuffer.readBuffer());    
+    }
+    if (!bToABuffer.isBufferEmpty()) {
+      protocolA.processProtocol(bToABuffer.readBuffer());    
+    }
+    if (!aToBBuffer.isBufferEmpty()) {
+      protocolB.processProtocol(aToBBuffer.readBuffer());    
+    }
+    if (!bToABuffer.isBufferEmpty()) {
+      protocolA.processProtocol(bToABuffer.readBuffer());    
+    }
+  }
+
+
+
+  assert(gCommand == 1);
+  assert(commandADoneV == 1);
+  assert(res == true);
+  assert(processBCmdCnt == 1);
+
 
   printf ("\n-----------------------------------------\n");
   test = 3;  // lose one byte
@@ -178,12 +323,62 @@ int main () {
   commandADoneV=0;
   printf ("TEST %d One byte in the message is lost. \n", test);
   res = protocolA.doCommand(2,testData , 2, 1);
+
+  while (!aToBBuffer.isBufferEmpty() || !bToABuffer.isBufferEmpty()) {
+    if (!aToBBuffer.isBufferEmpty()) {
+      protocolB.processProtocol(aToBBuffer.readBuffer());    
+    }
+    if (!bToABuffer.isBufferEmpty()) {
+      protocolA.processProtocol(bToABuffer.readBuffer());    
+    }
+    if (!aToBBuffer.isBufferEmpty()) {
+      protocolB.processProtocol(aToBBuffer.readBuffer());    
+    }
+    if (!bToABuffer.isBufferEmpty()) {
+      protocolA.processProtocol(bToABuffer.readBuffer());    
+    }
+  }
+
+
+
   assert(gCommand == 2);
   assert(gMsb==3);
   assert(gLsb==4);
   assert(commandADoneV == 1);
   assert(processBCmdCnt == 1);
   assert(res == true);
+
+  printf ("\n-----------------------------------------\n");
+  test = 100;
+  printf ("TEST %d A message with just the command.\n", test);
+  gCommand = 0;
+  gMsb = 0;
+  gLsb = 0;
+  commandADoneV=0;
+  processBCmdCnt=0;
+  res = protocolA.doCommand(1, NULL, 0, 1);
+
+  while (!aToBBuffer.isBufferEmpty() || !bToABuffer.isBufferEmpty()) {
+    if (!aToBBuffer.isBufferEmpty()) {
+      protocolB.processProtocol(aToBBuffer.readBuffer());    
+    }
+    if (!bToABuffer.isBufferEmpty()) {
+      protocolA.processProtocol(bToABuffer.readBuffer());    
+    }
+    if (!aToBBuffer.isBufferEmpty()) {
+      protocolB.processProtocol(aToBBuffer.readBuffer());    
+    }
+    if (!bToABuffer.isBufferEmpty()) {
+      protocolA.processProtocol(bToABuffer.readBuffer());    
+    }
+  }
+
+
+  assert(gCommand == 1);
+  assert(commandADoneV == 1);
+  assert(res == true);
+  assert(processBCmdCnt == 1);
+
 
   printf ("\n-----------------------------------------\n");
   test = 4;  // lose the ACK
@@ -195,11 +390,247 @@ int main () {
   commandADoneV=0;
   printf ("TEST %d The first ACK is lost\n", test);
   res = protocolA.doCommand(2,testData , 2, 1);
+
+  while (!aToBBuffer.isBufferEmpty() || !bToABuffer.isBufferEmpty()) {
+    if (!aToBBuffer.isBufferEmpty()) {
+      protocolB.processProtocol(aToBBuffer.readBuffer());    
+    }
+    if (!bToABuffer.isBufferEmpty()) {
+      protocolA.processProtocol(bToABuffer.readBuffer());    
+    }
+    if (!aToBBuffer.isBufferEmpty()) {
+      protocolB.processProtocol(aToBBuffer.readBuffer());    
+    }
+    if (!bToABuffer.isBufferEmpty()) {
+      protocolA.processProtocol(bToABuffer.readBuffer());    
+    }
+  }
+
+
   assert(res == true);
   CALL_MEMBER_FN(protocolA,timeoutFn)();
+
+  while (!aToBBuffer.isBufferEmpty() || !bToABuffer.isBufferEmpty()) {
+    if (!aToBBuffer.isBufferEmpty()) {
+      protocolB.processProtocol(aToBBuffer.readBuffer());    
+    }
+    if (!bToABuffer.isBufferEmpty()) {
+      protocolA.processProtocol(bToABuffer.readBuffer());    
+    }
+    if (!aToBBuffer.isBufferEmpty()) {
+      protocolB.processProtocol(aToBBuffer.readBuffer());    
+    }
+    if (!bToABuffer.isBufferEmpty()) {
+      protocolA.processProtocol(bToABuffer.readBuffer());    
+    }
+  }
+
+
   assert(gCommand == 2);
   assert(gMsb==3);
   assert(gLsb==4);
   assert(commandADoneV == 1);
   assert(processBCmdCnt == 1);
+
+  printf ("\n-----------------------------------------\n");
+  test = 100;
+  printf ("TEST %d A message with just the command.\n", test);
+  gCommand = 0;
+  gMsb = 0;
+  gLsb = 0;
+  commandADoneV=0;
+  processBCmdCnt=0;
+  res = protocolA.doCommand(1, NULL, 0, 1);
+
+  while (!aToBBuffer.isBufferEmpty() || !bToABuffer.isBufferEmpty()) {
+    if (!aToBBuffer.isBufferEmpty()) {
+      protocolB.processProtocol(aToBBuffer.readBuffer());    
+    }
+    if (!bToABuffer.isBufferEmpty()) {
+      protocolA.processProtocol(bToABuffer.readBuffer());    
+    }
+    if (!aToBBuffer.isBufferEmpty()) {
+      protocolB.processProtocol(aToBBuffer.readBuffer());    
+    }
+    if (!bToABuffer.isBufferEmpty()) {
+      protocolA.processProtocol(bToABuffer.readBuffer());    
+    }
+  }
+
+  assert(gCommand == 1);
+  assert(commandADoneV == 1);
+  assert(res == true);
+  assert(processBCmdCnt == 1);
+
+
+  printf ("\n-----------------------------------------\n");
+  test = 5;  // An ack becomes an oposite ack
+  gCommand = 0;
+  gMsb = 0;
+  gLsb = 0;
+  byteCnt=0;
+  processBCmdCnt=0;
+  commandADoneV=0;
+  printf ("TEST %d an ack becomes an oposite ack.\n", test);
+  res = protocolA.doCommand(2,testData , 2, 1);
+
+  while (!aToBBuffer.isBufferEmpty() || !bToABuffer.isBufferEmpty()) {
+    if (!aToBBuffer.isBufferEmpty()) {
+      protocolB.processProtocol(aToBBuffer.readBuffer());    
+    }
+    if (!bToABuffer.isBufferEmpty()) {
+      protocolA.processProtocol(bToABuffer.readBuffer());    
+    }
+    if (!aToBBuffer.isBufferEmpty()) {
+      protocolB.processProtocol(aToBBuffer.readBuffer());    
+    }
+    if (!bToABuffer.isBufferEmpty()) {
+      protocolA.processProtocol(bToABuffer.readBuffer());    
+    }
+  }
+
+
+  assert(res == true);
+  CALL_MEMBER_FN(protocolA,timeoutFn)();
+
+  while (!aToBBuffer.isBufferEmpty() || !bToABuffer.isBufferEmpty()) {
+    if (!aToBBuffer.isBufferEmpty()) {
+      protocolB.processProtocol(aToBBuffer.readBuffer());    
+    }
+    if (!bToABuffer.isBufferEmpty()) {
+      protocolA.processProtocol(bToABuffer.readBuffer());    
+    }
+    if (!aToBBuffer.isBufferEmpty()) {
+      protocolB.processProtocol(aToBBuffer.readBuffer());    
+    }
+    if (!bToABuffer.isBufferEmpty()) {
+      protocolA.processProtocol(bToABuffer.readBuffer());    
+    }
+  }
+
+  assert(gCommand == 2);
+  assert(gMsb==3);
+  assert(gLsb==4);
+  assert(commandADoneV == 1);
+  assert(processBCmdCnt == 1);
+
+
+  printf ("\n-----------------------------------------\n");
+  test = 100;
+  printf ("TEST %d A message with just the command.\n", test);
+  gCommand = 0;
+  gMsb = 0;
+  gLsb = 0;
+  commandADoneV=0;
+  processBCmdCnt=0;
+  res = protocolA.doCommand(1, NULL, 0, 1);
+
+  while (!aToBBuffer.isBufferEmpty() || !bToABuffer.isBufferEmpty()) {
+    if (!aToBBuffer.isBufferEmpty()) {
+      protocolB.processProtocol(aToBBuffer.readBuffer());    
+    }
+    if (!bToABuffer.isBufferEmpty()) {
+      protocolA.processProtocol(bToABuffer.readBuffer());    
+    }
+    if (!aToBBuffer.isBufferEmpty()) {
+      protocolB.processProtocol(aToBBuffer.readBuffer());    
+    }
+    if (!bToABuffer.isBufferEmpty()) {
+      protocolA.processProtocol(bToABuffer.readBuffer());    
+    }
+  }
+
+
+  assert(gCommand == 1);
+  assert(commandADoneV == 1);
+  assert(res == true);
+  assert(processBCmdCnt == 1);
+
+  printf ("\n-----------------------------------------\n");
+  test = 6;  // A high bit is changed in the command word
+  gCommand = 0;
+  gMsb = 0;
+  gLsb = 0;
+  byteCnt=0;
+  processBCmdCnt=0;
+  commandADoneV=0;
+  printf ("TEST %d a high bit is changed in the command word.\n", test);
+  res = protocolA.doCommand(2,testData , 2, 1);
+  assert(res == true);
+
+  while (!aToBBuffer.isBufferEmpty() || !bToABuffer.isBufferEmpty()) {
+    if (!aToBBuffer.isBufferEmpty()) {
+      protocolB.processProtocol(aToBBuffer.readBuffer());    
+    }
+    if (!bToABuffer.isBufferEmpty()) {
+      protocolA.processProtocol(bToABuffer.readBuffer());    
+    }
+    if (!aToBBuffer.isBufferEmpty()) {
+      protocolB.processProtocol(aToBBuffer.readBuffer());    
+    }
+    if (!bToABuffer.isBufferEmpty()) {
+      protocolA.processProtocol(bToABuffer.readBuffer());    
+    }
+  }
+
+
+  CALL_MEMBER_FN(protocolA,timeoutFn)();
+
+  while (!aToBBuffer.isBufferEmpty() || !bToABuffer.isBufferEmpty()) {
+    if (!aToBBuffer.isBufferEmpty()) {
+      protocolB.processProtocol(aToBBuffer.readBuffer());    
+    }
+    if (!bToABuffer.isBufferEmpty()) {
+      protocolA.processProtocol(bToABuffer.readBuffer());    
+    }
+    if (!aToBBuffer.isBufferEmpty()) {
+      protocolB.processProtocol(aToBBuffer.readBuffer());    
+    }
+    if (!bToABuffer.isBufferEmpty()) {
+      protocolA.processProtocol(bToABuffer.readBuffer());    
+    }
+  }
+
+
+  assert(gCommand == 2);
+  assert(gMsb==3);
+  assert(gLsb==4);
+  assert(commandADoneV == 1);
+  assert(processBCmdCnt == 1);
+
+
+  printf ("\n-----------------------------------------\n");
+  test = 100;
+  printf ("TEST %d A message with just the command.\n", test);
+  gCommand = 0;
+  gMsb = 0;
+  gLsb = 0;
+  commandADoneV=0;
+  processBCmdCnt=0;
+  res = protocolA.doCommand(1, NULL, 0, 1);
+
+  while (!aToBBuffer.isBufferEmpty() || !bToABuffer.isBufferEmpty()) {
+    if (!aToBBuffer.isBufferEmpty()) {
+      protocolB.processProtocol(aToBBuffer.readBuffer());    
+    }
+    if (!bToABuffer.isBufferEmpty()) {
+      protocolA.processProtocol(bToABuffer.readBuffer());    
+    }
+    if (!aToBBuffer.isBufferEmpty()) {
+      protocolB.processProtocol(aToBBuffer.readBuffer());    
+    }
+    if (!bToABuffer.isBufferEmpty()) {
+      protocolA.processProtocol(bToABuffer.readBuffer());    
+    }
+  }
+
+
+  assert(gCommand == 1);
+  assert(commandADoneV == 1);
+  assert(res == true);
+  assert(processBCmdCnt == 1);
+
+
+
+
 }
