@@ -1,8 +1,56 @@
 // =============================================================================================================  
 //                                         Includes
-  #include <Wire.h>                             // I2C handler
 
+#include <Wire.h>                             // I2C handler
 #include "protocol.h"  
+
+
+// =============================================================================================================
+//                                      400nS pulse to Initialize
+void Trigger_Initialize ()
+  {
+    PORTC |= B00000001 ; // Turn on PC0
+    __asm__("nop\n\t");  //
+    __asm__("nop\n\t");  //
+    __asm__("nop\n\t");  // Wait for 400nS
+    __asm__("nop\n\t");  //
+    __asm__("nop\n\t");  //
+    __asm__("nop\n\t");  //
+    PORTC &= B11111110 ; // Turn off PC0
+  }
+
+
+// =============================================================================================================
+//                                      400nS pulse to Latch in address
+void Trigger_Adres_Latch ()
+  {
+    PORTC |= B00000010 ; // Turn on PC1
+    __asm__("nop\n\t");  //
+    __asm__("nop\n\t");  //
+    __asm__("nop\n\t");  // Wait for 400ns
+    __asm__("nop\n\t");  //
+    __asm__("nop\n\t");  //
+    __asm__("nop\n\t");  //
+    PORTC &= B11111101 ; // Turn off PC1
+  }
+
+
+// =============================================================================================================
+//                                      400nS pulse to start memorycycle
+void Trigger_Mem_Start ()
+  {
+    PORTC |= B00000100; // Turn on PC2
+    __asm__("nop\n\t"); //
+    __asm__("nop\n\t"); //
+    __asm__("nop\n\t"); // Wait for 400ns
+    __asm__("nop\n\t"); //
+    __asm__("nop\n\t"); //
+    __asm__("nop\n\t"); //
+    PORTC &= B11111011; // Turn on PC2
+  }
+
+
+
 
 // =============================================================================================================  
 //                                         Pin definitions
@@ -170,50 +218,6 @@ void Continue()
       }
   }
 
-
-// =============================================================================================================
-//                                      400nS pulse to Initialize
-void Trigger_Initialize ()
-  {
-    PORTC |= B00000001 ; // Turn on PC0
-    __asm__("nop\n\t");  //
-    __asm__("nop\n\t");  //
-    __asm__("nop\n\t");  // Wait for 400nS
-    __asm__("nop\n\t");  //
-    __asm__("nop\n\t");  //
-    __asm__("nop\n\t");  //
-    PORTC &= B11111110 ; // Turn off PC0
-  }
-
-
-// =============================================================================================================
-//                                      400nS pulse to Latch in address
-void Trigger_Adres_Latch ()
-  {
-    PORTC |= B00000010 ; // Turn on PC1
-    __asm__("nop\n\t");  //
-    __asm__("nop\n\t");  //
-    __asm__("nop\n\t");  // Wait for 400ns
-    __asm__("nop\n\t");  //
-    __asm__("nop\n\t");  //
-    __asm__("nop\n\t");  //
-    PORTC &= B11111101 ; // Turn off PC1
-  }
-
-
-// =============================================================================================================
-//                                      400nS pulse to start memorycycle
-void Trigger_Mem_Start ()
-  {
-    PORTC |= B00000100; // Turn on PC2
-    __asm__("nop\n\t"); //
-    __asm__("nop\n\t"); //
-    __asm__("nop\n\t"); // Wait for 400ns
-    __asm__("nop\n\t"); //
-    __asm__("nop\n\t"); //
-    __asm__("nop\n\t"); //
-    PORTC &= B11111011; // Turn on PC2
-  }
 
 
 
