@@ -29,6 +29,7 @@ class Protocol {
     void timeOut ();
   public:
     bool doCommand (char command, char * data, char len ,int maxRes);
+    bool doCommand (char command, char msb, char lsb ,int maxRes);
     Protocol ( void (* s) (char), void (* p) (char, char, char), void (*) ( void (Protocol::*) (), int ), void (*) (int) ); 
     void processProtocol(char tmp);
 };

@@ -18,6 +18,7 @@
 #include <time.h>
 #include "../PDP8Server/protocol.h"
 
+
 int fd; // fd of the serial port is global
 
 void processCmd(char command, char lsb, char msb) {
@@ -85,157 +86,6 @@ int set_interface_attribs(int fd, int speed)
   return 0;
 }
 
-enum captureState_e {
-  CS_START = 0,
-  CS_LEAD_IN,
-  CS_DATA_H,
-  CS_DATA_L,
-  CS_ADDRESS_H,
-  CS_ADDRESS_L,
-  CS_TRAIL,
-  CS_DONE
-};
-
-void capture_raw(FILE *f, enum captureState_e *state, unsigned char c)
-{
-  // Just capture every byte recived until time out. Leave CS_START state to allow time out
-  switch (*state) {
-  case CS_START:
-    *state = CS_LEAD_IN;
-  case CS_LEAD_IN:
-  case CS_DATA_H:
-  case CS_DATA_L:
-  case CS_ADDRESS_H:
-  case CS_ADDRESS_L:
-  case CS_TRAIL:
-  case CS_DONE:
-    fputc(c, f);
-    break;
-  }
-}
-
-void capture_rim(FILE *f, enum captureState_e *state, unsigned char c)
-{
-  static int leadinCount = 0;
-  
-  switch (*state) {
-  case CS_START:
-    if (c == CC_LEAD)
-      leadinCount++;
-    *state = CS_LEAD_IN;
-    break;
-
-  case CS_LEAD_IN:
-    if (c == CC_LEAD) {
-      leadinCount++;
-    } else if (((c & CC_CONTROL_MASK) == CC_ORIGIN && leadinCount > 7)){
-      while (leadinCount--) { 
-	fputc(CC_LEAD, f);
-      }
-      fputc(c, f);
-      *state = CS_DATA_H;
-    } else {
-      leadinCount = 0;
-    }
-    break;
-
-  case CS_DATA_H:
-    if (c == 0x80) {
-      *state = CS_TRAIL;
-    }
-    fputc(c, f);
-    break;
-
-  case CS_TRAIL:
-    if (c != CC_TRAIL) {
-      *state = CS_DONE;
-    } else {
-      fputc(c, f);
-    }
-    break;
-
-  case CS_DONE:
-    break;
-
-  case CS_DATA_L:
-  case CS_ADDRESS_H:
-  case CS_ADDRESS_L:
-    break;
-  }
-} 
-
-void capture_bin(FILE *f, enum captureState_e *state, unsigned char c)
-{
-  static int leadinCount = 0;
-  static int csum = 0;
-  static int c1 = 0;
-  static int c2 = 0;
-  
-  switch (*state) {
-  case CS_START:
-    if (c == CC_LEAD)
-      leadinCount++;
-    *state = CS_LEAD_IN;
-    break;
-
-  case CS_LEAD_IN:
-    if (c == CC_LEAD) {
-      leadinCount++;
-    } else if (((c & CC_CONTROL_MASK) == CC_ORIGIN && leadinCount > 7) || 
-	       ((c & CC_CONTROL_MASK) == CC_FIELD && leadinCount > 7))
-      {
-        while (leadinCount--) { 
-          fputc(CC_LEAD, f);
-        }
-        
-        // CC_FIELD is NOT used for checksum
-        if ((c & CC_CONTROL_MASK) == CC_ORIGIN) {
-          csum += c;
-        }
-        
-        fputc(c, f);
-        *state = CS_DATA_L;
-      } else {
-      leadinCount = 0;
-    }
-    break;
-
-  case CS_DATA_L:
-    fputc(c, f);
-      
-    // CC_TRAIL or CC_FIELD is not used in checksum calculation
-    if ( !(c & 0x80)) { 
-      csum += c;
-      c2 = c1;
-      c1 = c;
-    }
-
-    if (c == 0x80) {
-      int checksum = (c2 & 0x3f) << 6 | (c1 & 0x3f);
-      csum = (csum - c1 - c2) & 0xfff;
-        
-      // Verify C-SUM
-      if (csum  == checksum){
-	printf("Checksum OK!: %4o\n", checksum);
-      } else {
-	printf("Checksum FAIL!: calc %4o <-> recv %4o\n", csum, checksum);
-      }
-      *state = CS_TRAIL;
-    }
-    break;
-
-  case CS_TRAIL:
-    if (c != CC_TRAIL) {
-      *state = CS_DONE;
-    } else {
-      fputc(c, f);
-    }
-    break;
-
-  case CS_DONE:
-    break;
-  }
-}
 
 int open_serial (char * device) {
       fd = open(device, O_RDWR | O_NOCTTY | O_NDELAY);
@@ -251,10 +101,9 @@ int start_address;
 int current_address;
 int run_address;
 int state;
-int tmp; 
+unsigned char msb; 
 
 void processRimChar (char ch) {
-  int t = ch;
   switch (state) {
   case 0:
     if (ch == 0x80) {
@@ -264,31 +113,58 @@ void processRimChar (char ch) {
   case 1: // high address
     if ((ch & 0x40) == 0x40) {
       state = 2;
-      tmp = (0x3f & t) << 6;
-    } 
+      msb = 0x3f & ch;
+    } else if ((ch & 0x80) == 0x80) {
+      state = 5;
+    }
     break;
   case 2: // low address
     state = 3; 
-    tmp |= 0x3f & ch;
-    if (++current_address != tmp) {
-      doLoadAddress(tmp);
-    }
+    protocolHandler.doCommand(LOAD_ADDRESS, msb, ch & 0x3f, 10);
     break;
   case 3: // high data
     state = 4; 
-    tmp = (0x3f & t) << 6;
+    msb = 0x3f & ch;
     break;
   case 4: // low data
     state = 1;
-    tmp = 0x3f & t;
-    deposit(tmp);
+    protocolHandler.doCommand(DEPOSIT, msb, ch & 0x3f, 10);
+    break;
+  case 5:
     break;
   }
 }
 
 
 void processBinChar (char ch) {
-
+  switch (state) {
+  case 0:
+    if (ch == 0x80) {
+      state = 1;
+    }    
+    break;
+  case 1:
+    msb = 0x3f & ch;
+    if ((ch & 0x40) == 0x40) {
+      state = 2;
+    } 
+    else if (ch & 0x80 == 0x80) {
+      state = 5;
+    } else {
+      state =3
+    }
+    break;
+  case 2:
+    state = 1; 
+    protocolHandler.doCommand(LOAD_ADDRESS, msb, ch & 0x3f, 10);
+    break;
+  case 3: // low data
+    state = 1;
+    protocolHandler.doCommand(DEPOSIT, msb, ch & 0x3f, 10);
+    break;
+  case 5: // done
+    break;
+  }
 }
 
 
@@ -302,6 +178,7 @@ void processRawChar (char ch) {
     tmp = 0x3f & t;
     deposit(tmp);
     break;
+
   }
 }
 

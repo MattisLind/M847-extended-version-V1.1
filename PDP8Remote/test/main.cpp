@@ -6,8 +6,8 @@
   Serial and Wifi so we could have the same code in Linux as well as ESP32.
 
 
-  Compile on Macos: c++ -DLINUX -DMACOS -I. main.cpp Serial.cpp ../PDP8Server/protocol.cpp
-  Compile on Linux: c++ -DLINUX  -I. main.cpp Serial.cpp ../PDP8Server/protocol.cpp
+  Compile on Macos: c++ -DLINUX -DMACOS -I. main.cpp Serial.cpp ../PDP8Server/protocol.cpp Wire.cpp
+  Compile on Linux: c++ -DLINUX  -I. main.cpp Serial.cpp ../PDP8Server/protocol.cpp Wire.cpp
 
   Run as sudo to be able to open the serial port.
 
