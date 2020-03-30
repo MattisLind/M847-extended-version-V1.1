@@ -2,7 +2,9 @@
   
  Command-line tool to control the PDP8Server on the Extended M847 board
 
- RIM, BIN prsing is from code written by Anders Sandahl.
+ c++ PDP8Client.cpp ../PDP8Server/protocol.cpp -o PDP8Client
+
+ ./PDP8Client -i /dev/ttyUSB0 -d ../../../Downloads/maindec-08-d1b1-pm -f rim
 
  */
 
@@ -18,6 +20,7 @@
 #include <time.h>
 #include <poll.h>
 #include "../PDP8Server/protocol.h"
+#include <sys/time.h>
 
 int remoteState=0; 
 int fd; // fd of the serial port is global
@@ -44,10 +47,34 @@ void commandDone(int status) {
 class Protocol protocolHandler(sendSerialChar, processCmd, handleTimeout, commandDone);
 
 
-void handleTimeout ( void (Protocol::* t) (), int ms) {
-
+unsigned long getTimeInUs () {
+  struct timeval tv;
+  gettimeofday(&tv,NULL);
+  return  1000000 * tv.tv_sec + tv.tv_usec;
 }
 
+unsigned long then;
+unsigned long timeout;
+
+TimeoutFn timeoutFn;
+
+void handleTimeout ( void (Protocol::* t) (), int ms) {
+  then = getTimeInUs();
+  timeout = ms * 1000;
+  timeoutFn = t;
+}
+
+#define CALL_MEMBER_FN(object,ptrToMember)  ((object).*(ptrToMember))
+
+void  checkIfTimeout() {
+  unsigned long now  = getTimeInUs();
+  if (timeout >= 0) {
+    if ((now - then) > timeout) {
+      timeout = -1;
+      CALL_MEMBER_FN(protocolHandler,timeoutFn)();
+    } 
+  }
+}
 
 
 // Define control codes and bit masks
@@ -62,6 +89,9 @@ void handleTimeout ( void (Protocol::* t) (), int ms) {
 #define NOP 0
 #define LOAD_ADDRESS 1
 #define DEPOSIT 2
+#define LOAD_FIELD 3
+#define START 4
+
 
 int set_interface_attribs(int fd, int speed)
 {
@@ -129,7 +159,7 @@ void processRimChar (unsigned char ch) {
       msb = 0x3f & ch;
     } else if ((ch & 0x80) == 0x80) {
       state = 5;
-    }
+    } 
     break;
   case 2: // low address
     state = 3; 
@@ -149,22 +179,30 @@ void processRimChar (unsigned char ch) {
 }
 
 
+bool startDirectly;
+
 void processBinChar (unsigned char ch) {
   switch (state) {
   case 0:
     if (ch == 0x80) {
       state = 1;
     }    
+    startDirectly = false;
     break;
   case 1:
     msb = 0x3f & ch;
-    if ((ch & 0x40) == 0x40) {
+    if ((ch & CC_ORIGIN) == CC_ORIGIN) {
       state = 2;
+      startDirectly = true;
     } 
-    else if ((ch & 0x80) == 0x80) {
+    else if ((ch & CC_LEAD) == CC_LEAD) {
       state = 5;
+    } else if ((ch & CC_FIELD) == CC_FIELD) {
+      char tmp = ch & 0x3f;
+      protocolHandler.doCommand(LOAD_FIELD, &tmp, 1 , 10);
     } else {
       state = 3;
+      startDirectly = false;
     }
     break;
   case 2:
@@ -176,6 +214,9 @@ void processBinChar (unsigned char ch) {
     protocolHandler.doCommand(DEPOSIT, msb, ch & 0x3f, 10);
     break;
   case 5: // done
+    if (startDirectly) {
+      protocolHandler.doCommand(START, (char *) NULL, 1, 10);
+    }
     break;
   }
 }
@@ -215,6 +256,8 @@ int main(int argc, char **argv)
   int wait_count=0;
   int ch;
   int opt;
+  bool format;
+  fd = -1;
   while ((opt = getopt(argc, argv, "r:s:d:f:i:")) != -1) {
     switch (opt) {
     case 'i':
@@ -262,6 +305,12 @@ int main(int argc, char **argv)
     }
   }
 
+  format = bin || raw || rim;
+  if ((input_file == NULL) || (fd == -1) || (!format)) {
+    fprintf (stderr, "Usage: %s [-i input-file -d serial-device -s start-address -f file-format (rim/bin/raw) -r run-address)]\n", argv[0]);
+    exit(EXIT_FAILURE);
+  }
+
   // send NOP to PDP8Server and wait for it to change state to connected  
   protocolHandler.doCommand(0x00, (char *) NULL, 0, 110); 
   remoteState = 0;
@@ -269,7 +318,8 @@ int main(int argc, char **argv)
     unsigned char buf[80];
     int rdlen;
     char tmp;
-
+    unsigned long now;
+    checkIfTimeout();
     if (serial_available()) {
       // process data coming from the PDP8Server
       read(fd, &tmp, 1);
@@ -278,8 +328,10 @@ int main(int argc, char **argv)
     switch (remoteState) {
     case 0:
       // Connecting - waiting
-      if ((time(NULL)-last_time) > 1) {
+      now = time(NULL);
+      if ((now-last_time) > 1) {
 	printf(".");
+	last_time = now;
 	wait_count++;
       }
       break;
