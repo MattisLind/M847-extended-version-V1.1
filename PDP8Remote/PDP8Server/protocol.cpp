@@ -37,11 +37,11 @@ void Protocol::sendCommand() {
   }
 }
 
-bool doCommand (char command, char msb, char lsb ,int maxRes) {
+bool Protocol::doCommand (char command, char msb, char lsb ,int maxRes) {
   char data[2];
   data[0] = msb;
   data[1] = lsb;
-  doCommand(command, data, 2, maxRes); 
+  return doCommand(command, data, 2, maxRes); 
 }
 
 bool Protocol::doCommand(char command, char * data, char len, int maxRes) {

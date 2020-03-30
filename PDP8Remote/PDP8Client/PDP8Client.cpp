@@ -16,9 +16,10 @@
 #include <unistd.h>
 #include <stdbool.h>
 #include <time.h>
+#include <poll.h>
 #include "../PDP8Server/protocol.h"
 
-
+int remoteState=0; 
 int fd; // fd of the serial port is global
 
 void processCmd(char command, char lsb, char msb) {
@@ -34,13 +35,20 @@ typedef  void (Protocol::* TimeoutFn)();
 void handleTimeout ( void (Protocol::* ) (), int);
 
 void commandDone(int status) {
-  if (state == 0 && status == 0) {
-    state = 1; // When in state 0 and receiving an ack it means that we goa a positive response on the NOP
+  if (remoteState == 0 && status == 0) {
+    remoteState = 1; // When in state 0 and receiving an ack it means that we goa a positive response on the NOP
   }
 
 }
 
 class Protocol protocolHandler(sendSerialChar, processCmd, handleTimeout, commandDone);
+
+
+void handleTimeout ( void (Protocol::* t) (), int ms) {
+
+}
+
+
 
 // Define control codes and bit masks
 #define CC_LEAD         0x80
@@ -50,6 +58,10 @@ class Protocol protocolHandler(sendSerialChar, processCmd, handleTimeout, comman
 #define CC_FIELD_MASK   0x1C
 #define CC_DATA_MASK    0x3F
 #define CC_CONTROL_MASK 0xC0
+
+#define NOP 0
+#define LOAD_ADDRESS 1
+#define DEPOSIT 2
 
 int set_interface_attribs(int fd, int speed)
 {
@@ -93,8 +105,9 @@ int open_serial (char * device) {
 
       /* Baudrate 115200, 8 bits, no parity, 1 stop bit */
       if (set_interface_attribs(fd, B115200) < 0) {
-	exit(EXIT_FAILURE);
+        return -1;
       }  
+      return 0;
 }
 
 int start_address;
@@ -103,7 +116,7 @@ int run_address;
 int state;
 unsigned char msb; 
 
-void processRimChar (char ch) {
+void processRimChar (unsigned char ch) {
   switch (state) {
   case 0:
     if (ch == 0x80) {
@@ -136,7 +149,7 @@ void processRimChar (char ch) {
 }
 
 
-void processBinChar (char ch) {
+void processBinChar (unsigned char ch) {
   switch (state) {
   case 0:
     if (ch == 0x80) {
@@ -148,10 +161,10 @@ void processBinChar (char ch) {
     if ((ch & 0x40) == 0x40) {
       state = 2;
     } 
-    else if (ch & 0x80 == 0x80) {
+    else if ((ch & 0x80) == 0x80) {
       state = 5;
     } else {
-      state =3
+      state = 3;
     }
     break;
   case 2:
@@ -168,15 +181,13 @@ void processBinChar (char ch) {
 }
 
 
-void processRawChar (char ch) {
-  int t = ch;
+void processRawChar (unsigned char ch) {
   switch (state) {
   case 0:
-    tmp = (0x3f & t) << 6;
+    msb = 0x3f & ch;
     break;
   case 1:
-    tmp = 0x3f & t;
-    deposit(tmp);
+    protocolHandler.doCommand(DEPOSIT, msb, ch & 0x3f, 10);
     break;
 
   }
@@ -199,11 +210,11 @@ int main(int argc, char **argv)
 
   int wlen;
   FILE *input_file;
-  enum captureState_e state = CS_START;
-  bool time_out = false;
   bool bin = false, rim = false, raw = false;
-  int state=0;
-  int ch
+  time_t last_time = time(NULL);    
+  int wait_count=0;
+  int ch;
+  int opt;
   while ((opt = getopt(argc, argv, "r:s:d:f:i:")) != -1) {
     switch (opt) {
     case 'i':
@@ -214,14 +225,14 @@ int main(int argc, char **argv)
       }
       break;
     case 's':
-      if (sscanf(otarg, "%4o",&start_address) != 1) {
+      if (sscanf(optarg, "%4o",&start_address) != 1) {
 	fprintf(stderr, "Failed to parse the start address given. Requires an octal number.\n");
 	exit(EXIT_FAILURE);
       } 
       break;
     case 'd':
       if (open_serial(optarg)) {
-	fprintf(stderr, "Error opening device %s: %s\n", portname, strerror(errno));
+	fprintf(stderr, "Error opening device %s: %s\n", optarg, strerror(errno));
 	exit(EXIT_FAILURE);	
       }
       break;
@@ -240,7 +251,7 @@ int main(int argc, char **argv)
       }
       break;
     case 'r':
-      if (sscanf(otarg, "%4o",&run_address) != 1) {
+      if (sscanf(optarg, "%4o",&run_address) != 1) {
 	fprintf(stderr, "Failed to parse the start address given. Requires an octal number.\n");
 	exit(EXIT_FAILURE);
       } 
@@ -252,23 +263,28 @@ int main(int argc, char **argv)
   }
 
   // send NOP to PDP8Server and wait for it to change state to connected  
-  protocolHandler.doCommand(0x00, NULL, 0); 
-  state = 0;
+  protocolHandler.doCommand(0x00, (char *) NULL, 0, 110); 
+  remoteState = 0;
   do {
     unsigned char buf[80];
     int rdlen;
     char tmp;
+
     if (serial_available()) {
       // process data coming from the PDP8Server
       read(fd, &tmp, 1);
       protocolHandler.processProtocol(tmp);
     }
-    switch (state) {
+    switch (remoteState) {
     case 0:
-      // Connecting - waiting 
+      // Connecting - waiting
+      if ((time(NULL)-last_time) > 1) {
+	printf(".");
+	wait_count++;
+      }
       break;
     case 1:
-      if ((ch=fgetc(input_file)) != FEOF) {
+      if ((ch=fgetc(input_file)) != EOF) {
 	// read one character from the file and process it according to filetype
 	if (rim) {
 	  processRimChar(ch);
@@ -279,24 +295,8 @@ int main(int argc, char **argv)
 	}
       }      
       break;
-    case 2:
-      break;
     }
-  } while (ch != FEOF && !connect_timeout);
+  } while ((ch != EOF) && (wait_count < 100) && (state != 5));
   close(fd);
   fclose(input_file);
 }
-
-
-      for (p = buf; rdlen-- > 0; p++) {
-        if (bin) capture_bin(fCapture, &state, *p);
-        if (rim) capture_rim(fCapture, &state, *p);
-        if (raw) capture_raw(fCapture, &state, *p);
-      }
-      time_out = false;
-    } else if (rdlen == 0) {
-      time_out = true;
-    } else {
-      fprintf(stderr, "Error from read: %d: %s\n", rdlen, strerror(errno));
-      time_out = true;
-    }
