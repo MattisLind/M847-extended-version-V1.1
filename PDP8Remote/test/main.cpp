@@ -14,6 +14,7 @@
 */
 #include "Serial.h"
 #include "Wire.h"
+#include <stdio.h>
 
 typedef unsigned char byte;
 typedef unsigned short word;
@@ -37,34 +38,48 @@ typedef unsigned short word;
 #define B01000000 128
 
 class Port {
+  const char * designator;
   public:
   Port& operator= (unsigned char);
   Port& operator&= (unsigned char);
   Port& operator|= (unsigned char);
+  Port (const char *);
 };
 
+Port::Port( const char * designator) {
+  Port::designator = designator;
+}
+
 Port& Port::operator= (unsigned char byte) {
+  fprintf (stderr, "%s = %02X\n", designator, byte);
   return *this;
 }
 Port& Port::operator&= (unsigned char byte) {
+  fprintf (stderr, "%s |= %02X\n", designator, byte);
   return *this;
 }
 Port& Port::operator|= (unsigned char byte) {
+  fprintf (stderr, "%s &= %02X\n", designator, byte);
+  if (byte == 0x02) fprintf(stderr, "LOAD ADDRESS\n");
+  if (byte == 0x04) fprintf(stderr, "START MEMORY\n");
   return *this;
 }
 
-unsigned char PORTA;
-unsigned char PORTB;
-unsigned char PORTC;
-unsigned char PORTD;
+class Port  PORTA("PORTA");
+class Port  PORTB("PORTB");
+class Port  PORTC("PORTC");
+class Port  PORTD("PORTD");
 
 
 void digitalWrite(word port, word value) {
+  fprintf(stderr, "Wrote pin %d = %d \n", port, value);
 }
 word digitalRead(word port) {
+  fprintf (stderr, "Reading in %d\n", port);
   return 0;
 }
 void pinMode(byte port, byte mode) {
+  fprintf (stderr, "Setting pinMode pin %d to %d \n", port, mode);
 }
 
 void setup();
@@ -75,7 +90,7 @@ unsigned long millis() {
 }
 
 
-class Serial Serial ("/dev/ttyUSB0");
+class Serial Serial ("/dev/ttyUSB1");
 
 class Wire Wire;
 

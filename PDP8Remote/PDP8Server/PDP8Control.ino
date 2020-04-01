@@ -287,7 +287,6 @@ void setup ()
 //                                          Setup serial port for debugging
   Serial.begin (115200);
   digitalWrite (0                 , HIGH)   ; // turn on pull up on RX line
-  Serial.println();
 }
 //                                                  End setup
 // =============================================================================================================
@@ -302,7 +301,7 @@ word make12BitWord (char msb,  char lsb) {
   tmp = 0x38 & lsb;
   ret |= tmp << 1;
   tmp = 0x07 & lsb;
-  ret |= lsb;
+  ret |= tmp;
   return ret;
 }
 

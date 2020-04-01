@@ -21,6 +21,7 @@ void Protocol::sendAck(bool even) {
 void Protocol::timeOut() {
   if (sendLen>0) {
     if (numResend < maxResend) {
+      requestTimeout(&Protocol::timeOut, 500);
       sendCommand();  // resend if timeout      
     } else {
       commandDone(1); 

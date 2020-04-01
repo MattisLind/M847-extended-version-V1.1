@@ -3,8 +3,8 @@
  Command-line tool to control the PDP8Server on the Extended M847 board
 
  c++ PDP8Client.cpp ../PDP8Server/protocol.cpp -o PDP8Client
-
- ./PDP8Client -i /dev/ttyUSB0 -d ../../../Downloads/maindec-08-d1b1-pm -f rim
+sudo ./PDP8Client -d /dev/ttyUSB0 -i ../../../Downloads/maindec-08-d1b1-pm -f rim
+ 
 
  */
 
@@ -30,6 +30,7 @@ void processCmd(char command, char lsb, char msb) {
 }
 
 void sendSerialChar(char ch) {
+  fprintf (stderr, "S%02X\n", 0xff & ch);
   write (fd, &ch, 1);
 }
 
@@ -38,10 +39,14 @@ typedef  void (Protocol::* TimeoutFn)();
 void handleTimeout ( void (Protocol::* ) (), int);
 
 void commandDone(int status) {
+  fprintf (stderr, "commandDone status=%d remoteState = %d\n", status, remoteState);
   if (remoteState == 0 && status == 0) {
     remoteState = 1; // When in state 0 and receiving an ack it means that we goa a positive response on the NOP
   }
-
+  if (remoteState == 2 && status ==0) {
+    remoteState = 1;
+  }
+				      
 }
 
 class Protocol protocolHandler(sendSerialChar, processCmd, handleTimeout, commandDone);
@@ -59,7 +64,9 @@ unsigned long timeout;
 TimeoutFn timeoutFn;
 
 void handleTimeout ( void (Protocol::* t) (), int ms) {
+  fprintf (stderr, "handletimeout %d ms\n", ms);
   then = getTimeInUs();
+  fprintf (stderr, "then = %lu\n", then);
   timeout = ms * 1000;
   timeoutFn = t;
 }
@@ -68,8 +75,10 @@ void handleTimeout ( void (Protocol::* t) (), int ms) {
 
 void  checkIfTimeout() {
   unsigned long now  = getTimeInUs();
+  fprintf (stderr, "now = %lu now-then=%lu timeout=%lu now-then> timeout %d \n", now, now-then, timeout, (now-then)>timeout);
   if (timeout >= 0) {
     if ((now - then) > timeout) {
+      fprintf (stderr, "timeout occured\n");
       timeout = -1;
       CALL_MEMBER_FN(protocolHandler,timeoutFn)();
     } 
@@ -143,10 +152,14 @@ int open_serial (char * device) {
 int start_address;
 int current_address;
 int run_address;
-int state;
+int state = 0;
 unsigned char msb; 
+int last_address=-2;
 
-void processRimChar (unsigned char ch) {
+bool processRimChar (unsigned char ch) {
+  int address; 
+  bool ret = false;
+  fprintf (stderr, "processRimChar START %02X state=%d\n", 0xff & ch, state);
   switch (state) {
   case 0:
     if (ch == 0x80) {
@@ -157,31 +170,50 @@ void processRimChar (unsigned char ch) {
     if ((ch & 0x40) == 0x40) {
       state = 2;
       msb = 0x3f & ch;
-    } else if ((ch & 0x80) == 0x80) {
-      state = 5;
-    } 
+    }  // this state eats TRAILER
     break;
   case 2: // low address
-    state = 3; 
-    protocolHandler.doCommand(LOAD_ADDRESS, msb, ch & 0x3f, 10);
+    state = 3;
+    address = msb << 6;
+    address |= (ch & 0x3f);
+    fprintf(stderr, "address=%04X last_address=%04X\n", address, last_address);
+    if (address != last_address) {
+      protocolHandler.doCommand(LOAD_ADDRESS, msb, ch & 0x3f, 10);
+      ret = true;
+      last_address = address;
+    } 
+
     break;
   case 3: // high data
     state = 4; 
     msb = 0x3f & ch;
     break;
   case 4: // low data
-    state = 1;
+    state = 6;
     protocolHandler.doCommand(DEPOSIT, msb, ch & 0x3f, 10);
+    last_address++;
+    ret = true;
     break;
   case 5:
     break;
+  case 6:
+    if ((ch & 0x80) == 0x80) {
+      state = 5;
+    } else if ((ch & 0x40) == 0x40) {
+      state = 2;
+      msb = 0x3f & ch;
+    }  
+    break;
   }
+  fprintf (stderr, "processRimChar END %02X state=%d\n", 0xff & ch, state);
+  return ret;
 }
 
 
 bool startDirectly;
 
-void processBinChar (unsigned char ch) {
+bool processBinChar (unsigned char ch) {
+  bool ret = false;
   switch (state) {
   case 0:
     if (ch == 0x80) {
@@ -194,44 +226,65 @@ void processBinChar (unsigned char ch) {
     if ((ch & CC_ORIGIN) == CC_ORIGIN) {
       state = 2;
       startDirectly = true;
-    } 
-    else if ((ch & CC_LEAD) == CC_LEAD) {
-      state = 5;
     } else if ((ch & CC_FIELD) == CC_FIELD) {
       char tmp = ch & 0x3f;
       protocolHandler.doCommand(LOAD_FIELD, &tmp, 1 , 10);
+      ret = true;
     } else {
       state = 3;
       startDirectly = false;
     }
     break;
   case 2:
-    state = 1; 
+    state = 6; 
     protocolHandler.doCommand(LOAD_ADDRESS, msb, ch & 0x3f, 10);
+    ret = true;
     break;
   case 3: // low data
-    state = 1;
+    state = 6;
     protocolHandler.doCommand(DEPOSIT, msb, ch & 0x3f, 10);
+    ret = true;
     break;
   case 5: // done
     if (startDirectly) {
       protocolHandler.doCommand(START, (char *) NULL, 1, 10);
+      ret = true;
     }
     break;
+  case 6:
+    msb = 0x3f & ch;
+    if ((ch & CC_ORIGIN) == CC_ORIGIN) {
+      state = 2;
+      startDirectly = true;
+    } else if ((ch & CC_FIELD) == CC_FIELD) {
+      char tmp = ch & 0x3f;
+      protocolHandler.doCommand(LOAD_FIELD, &tmp, 1 , 10);
+      ret = true;
+    } else if ((ch & 0x80) == 0x80) {
+      state = 5;
+    } else {
+      state = 3;
+      startDirectly = false;
+    }
+    break;    
   }
+  return ret;
 }
 
 
-void processRawChar (unsigned char ch) {
+bool processRawChar (unsigned char ch) {
+  bool ret;
   switch (state) {
   case 0:
     msb = 0x3f & ch;
     break;
   case 1:
     protocolHandler.doCommand(DEPOSIT, msb, ch & 0x3f, 10);
+    ret = true;
     break;
 
   }
+  return ret;
 }
 
 
@@ -256,7 +309,7 @@ int main(int argc, char **argv)
   int wait_count=0;
   int ch;
   int opt;
-  bool format;
+  bool format,ret;
   fd = -1;
   while ((opt = getopt(argc, argv, "r:s:d:f:i:")) != -1) {
     switch (opt) {
@@ -311,16 +364,21 @@ int main(int argc, char **argv)
     exit(EXIT_FAILURE);
   }
 
-  // send NOP to PDP8Server and wait for it to change state to connected  
-  protocolHandler.doCommand(0x00, (char *) NULL, 0, 110); 
+  // send NOP to PDP8Server and wait for it to change state to connected
+  fprintf (stderr, "before do-loop 1\n");
+  protocolHandler.doCommand(0x00, (char *) NULL, 0, 110);
+  fprintf (stderr, "after-do-loop 1\n");
   remoteState = 0;
+  state = 0;
   do {
     unsigned char buf[80];
     int rdlen;
     char tmp;
     unsigned long now;
+    fprintf (stderr, "do-loop 1 state = %d\n", state);
     checkIfTimeout();
     if (serial_available()) {
+      fprintf (stderr, "do-loop 2 state = %d\n", state);
       // process data coming from the PDP8Server
       read(fd, &tmp, 1);
       protocolHandler.processProtocol(tmp);
@@ -328,27 +386,44 @@ int main(int argc, char **argv)
     switch (remoteState) {
     case 0:
       // Connecting - waiting
+      fprintf (stderr, "do-loop 3 state=%d\n", state);
       now = time(NULL);
       if ((now-last_time) > 1) {
-	printf(".");
+	fprintf(stderr, ".");
 	last_time = now;
+	//fprintf (stderr, "do-loop 4\n");
 	wait_count++;
       }
       break;
     case 1:
       if ((ch=fgetc(input_file)) != EOF) {
+	fprintf (stderr, "Read char from file %02X\n", ch);
 	// read one character from the file and process it according to filetype
 	if (rim) {
-	  processRimChar(ch);
+	  ret = processRimChar(ch);
 	} else if (bin) {
-	  processBinChar(ch);	  
+	  ret = processBinChar(ch);	  
 	} else if (raw) {
-	  processRawChar(ch);
+	  ret = processRawChar(ch);
 	}
-      }      
+      }
+      if (ret) {
+	remoteState=2;
+      }
       break;
+    case 2:
+      break;
+    case 3:
+      // set the starting address for raw mode
+      protocolHandler.doCommand(LOAD_ADDRESS, 0x3f & (current_address >> 6), 0x3f & current_address, 110);
+      state = 5;
+      break;
+	
     }
+    fprintf(stderr, "before loop end %d wait_count %d state=%d\n", ch, wait_count, state);
   } while ((ch != EOF) && (wait_count < 100) && (state != 5));
   close(fd);
   fclose(input_file);
 }
+
+

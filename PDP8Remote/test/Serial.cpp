@@ -1,3 +1,4 @@
+#include <stdio.h>
 #ifdef LINUX
 
 #include "Serial.h"
@@ -44,19 +45,21 @@ speed_t Serial::translateSpeed(int speed) {
 void Serial::begin(int speed, int config) {
 
   speed_t speedSetting = translateSpeed(speed);
-  
+  int ret;
 	      
   struct termios options;
 
   /* open the port */
   fd = open(devStr, O_RDWR | O_NOCTTY | O_NDELAY);
-  fcntl(fd, F_SETFL, 0);
-  
+  fprintf (stderr, "fd=%d\n ", fd);
+  ret = fcntl(fd, F_SETFL, 0);
+  fprintf (stderr, "ret=%d\n", ret);
 
 
 
 /* get the current options */
-  tcgetattr(fd, &options);
+  ret = tcgetattr(fd, &options);
+  fprintf (stderr, "ret=%d\n", ret);
 
   
   options.c_cflag &= ~CSIZE;
@@ -69,14 +72,15 @@ void Serial::begin(int speed, int config) {
   cfsetospeed(&options, speedSetting);
   
   /* set raw input, 1 second timeout */
-  options.c_cflag     |= (CLOCAL | CREAD);
+  options.c_cflag     |= (CLOCAL |CREAD);
   options.c_lflag     &= ~(ICANON | ECHO | ECHOE | ISIG);
   options.c_oflag     &= ~OPOST;
   options.c_cc[VMIN]  = 0;
   options.c_cc[VTIME] = 10;
   
   /* set the options */
-  tcsetattr(fd, TCSANOW, &options);
+  ret = tcsetattr(fd, TCSANOW, &options);
+  fprintf (stderr, "ret=%d\n", ret);
 }
 
 int Serial::available () {
@@ -95,9 +99,11 @@ int Serial::read () {
   if (::read (fd, &ch, 1) != 1) {
     return -1;
   }
+  fprintf(stderr, "Rx:%02X\n", 0xff & ch);
   return (int) ch;
 }
 int Serial::write(char ch) {
+  fprintf (stderr, "Tx:%02X\n", 0xff & ch);
   return ::write(fd, &ch, 1);
 }
 int Serial::write(char * str) {
@@ -107,8 +113,8 @@ int Serial::write(unsigned char * buf, int len) {
   return ::write(fd, buf, len);
 }
 
-int Serial::print(const char *) {
-  return 0;
+int Serial::print(const char * str) {
+  write((char *) str);
 }
 
 int Serial::println() {
