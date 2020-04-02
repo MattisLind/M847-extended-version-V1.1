@@ -30,7 +30,7 @@ void processCmd(char command, char lsb, char msb) {
 }
 
 void sendSerialChar(char ch) {
-  fprintf (stderr, "S%02X\n", 0xff & ch);
+  //fprintf (stderr, "S%02X\n", 0xff & ch);
   write (fd, &ch, 1);
 }
 
@@ -39,7 +39,7 @@ typedef  void (Protocol::* TimeoutFn)();
 void handleTimeout ( void (Protocol::* ) (), int);
 
 void commandDone(int status) {
-  fprintf (stderr, "commandDone status=%d remoteState = %d\n", status, remoteState);
+  //fprintf (stderr, "commandDone status=%d remoteState = %d\n", status, remoteState);
   if (remoteState == 0 && status == 0) {
     remoteState = 1; // When in state 0 and receiving an ack it means that we goa a positive response on the NOP
   }
@@ -64,9 +64,9 @@ unsigned long timeout;
 TimeoutFn timeoutFn;
 
 void handleTimeout ( void (Protocol::* t) (), int ms) {
-  fprintf (stderr, "handletimeout %d ms\n", ms);
+  //fprintf (stderr, "handletimeout %d ms\n", ms);
   then = getTimeInUs();
-  fprintf (stderr, "then = %lu\n", then);
+  //fprintf (stderr, "then = %lu\n", then);
   timeout = ms * 1000;
   timeoutFn = t;
 }
@@ -75,10 +75,10 @@ void handleTimeout ( void (Protocol::* t) (), int ms) {
 
 void  checkIfTimeout() {
   unsigned long now  = getTimeInUs();
-  fprintf (stderr, "now = %lu now-then=%lu timeout=%lu now-then> timeout %d \n", now, now-then, timeout, (now-then)>timeout);
+  //fprintf (stderr, "now = %lu now-then=%lu timeout=%lu now-then> timeout %d \n", now, now-then, timeout, (now-then)>timeout);
   if (timeout >= 0) {
     if ((now - then) > timeout) {
-      fprintf (stderr, "timeout occured\n");
+      //fprintf (stderr, "timeout occured\n");
       timeout = -1;
       CALL_MEMBER_FN(protocolHandler,timeoutFn)();
     } 
@@ -107,7 +107,7 @@ int set_interface_attribs(int fd, int speed)
   struct termios tty;
 
   if (tcgetattr(fd, &tty) < 0) {
-    fprintf(stderr, "Error from tcgetattr: %s\n", strerror(errno));
+    //fprintf(stderr, "Error from tcgetattr: %s\n", strerror(errno));
     return -1;
   }
 
@@ -131,7 +131,7 @@ int set_interface_attribs(int fd, int speed)
   tty.c_cc[VTIME] = 10;
 
   if (tcsetattr(fd, TCSANOW, &tty) != 0) {
-    fprintf(stderr, "Error from tcsetattr: %s\n", strerror(errno));
+    //fprintf(stderr, "Error from tcsetattr: %s\n", strerror(errno));
     return -1;
   }
   return 0;
@@ -159,7 +159,7 @@ int last_address=-2;
 bool processRimChar (unsigned char ch) {
   int address; 
   bool ret = false;
-  fprintf (stderr, "processRimChar START %02X state=%d\n", 0xff & ch, state);
+  //fprintf (stderr, "processRimChar START %02X state=%d\n", 0xff & ch, state);
   switch (state) {
   case 0:
     if (ch == 0x80) {
@@ -176,7 +176,7 @@ bool processRimChar (unsigned char ch) {
     state = 3;
     address = msb << 6;
     address |= (ch & 0x3f);
-    fprintf(stderr, "address=%04X last_address=%04X\n", address, last_address);
+    //fprintf(stderr, "address=%04X last_address=%04X\n", address, last_address);
     if (address != last_address) {
       protocolHandler.doCommand(LOAD_ADDRESS, msb, ch & 0x3f, 10);
       ret = true;
@@ -191,7 +191,7 @@ bool processRimChar (unsigned char ch) {
   case 4: // low data
     state = 6;
     protocolHandler.doCommand(DEPOSIT, msb, ch & 0x3f, 10);
-    last_address++;
+    last_address = 0xfff & (last_address +1);
     ret = true;
     break;
   case 5:
@@ -205,7 +205,7 @@ bool processRimChar (unsigned char ch) {
     }  
     break;
   }
-  fprintf (stderr, "processRimChar END %02X state=%d\n", 0xff & ch, state);
+  //fprintf (stderr, "processRimChar END %02X state=%d\n", 0xff & ch, state);
   return ret;
 }
 
@@ -230,6 +230,8 @@ bool processBinChar (unsigned char ch) {
       char tmp = ch & 0x3f;
       protocolHandler.doCommand(LOAD_FIELD, &tmp, 1 , 10);
       ret = true;
+    } else if ((ch & CC_LEAD) == CC_LEAD)  {
+      state = 1;
     } else {
       state = 3;
       startDirectly = false;
@@ -309,6 +311,7 @@ int main(int argc, char **argv)
   int wait_count=0;
   int ch;
   int opt;
+  int cnt = 0;
   bool format,ret;
   fd = -1;
   while ((opt = getopt(argc, argv, "r:s:d:f:i:")) != -1) {
@@ -365,20 +368,18 @@ int main(int argc, char **argv)
   }
 
   // send NOP to PDP8Server and wait for it to change state to connected
-  fprintf (stderr, "before do-loop 1\n");
+  //fprintf (stderr, "before do-loop 1\n");
   protocolHandler.doCommand(0x00, (char *) NULL, 0, 110);
-  fprintf (stderr, "after-do-loop 1\n");
+  //fprintf (stderr, "after-do-loop 1\n");
   remoteState = 0;
   state = 0;
   do {
-    unsigned char buf[80];
-    int rdlen;
     char tmp;
     unsigned long now;
-    fprintf (stderr, "do-loop 1 state = %d\n", state);
+    //fprintf (stderr, "do-loop 1 state = %d\n", state);
     checkIfTimeout();
     if (serial_available()) {
-      fprintf (stderr, "do-loop 2 state = %d\n", state);
+      //fprintf (stderr, "do-loop 2 state = %d\n", state);
       // process data coming from the PDP8Server
       read(fd, &tmp, 1);
       protocolHandler.processProtocol(tmp);
@@ -386,10 +387,10 @@ int main(int argc, char **argv)
     switch (remoteState) {
     case 0:
       // Connecting - waiting
-      fprintf (stderr, "do-loop 3 state=%d\n", state);
+      //fprintf (stderr, "do-loop 3 state=%d\n", state);
       now = time(NULL);
       if ((now-last_time) > 1) {
-	fprintf(stderr, ".");
+	//fprintf(stderr, ".");
 	last_time = now;
 	//fprintf (stderr, "do-loop 4\n");
 	wait_count++;
@@ -397,7 +398,7 @@ int main(int argc, char **argv)
       break;
     case 1:
       if ((ch=fgetc(input_file)) != EOF) {
-	fprintf (stderr, "Read char from file %02X\n", ch);
+	//fprintf (stderr, "Read char number %d from file %02X\n", cnt++, ch);
 	// read one character from the file and process it according to filetype
 	if (rim) {
 	  ret = processRimChar(ch);
@@ -420,7 +421,7 @@ int main(int argc, char **argv)
       break;
 	
     }
-    fprintf(stderr, "before loop end %d wait_count %d state=%d\n", ch, wait_count, state);
+    //fprintf(stderr, "before loop end %d wait_count %d state=%d\n", ch, wait_count, state);
   } while ((ch != EOF) && (wait_count < 100) && (state != 5));
   close(fd);
   fclose(input_file);
