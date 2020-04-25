@@ -1,5 +1,14 @@
 # M847-extended-version-V1.1
-M847 extended version V1.1 project files
+
+## Fork by Mattis Lind
+
+I forked Roland Huismanns excellent project. I did somewhat rearrange the structure of the project and also added two more small tools. One is the PDP8COnsole which is a simple serial-port based command line tool for the PDP-8. It accepts simple commands and executes them. 
+
+The other tools is PDP8Remote which is a tool to remotely control the PDP-8. In essence it does what PDP8Console do but over a reliable transport protocol. On the M847 Extended Edition board there is a firmeware inside the AtMega328p processor that acts as a server. The server will execute the commands that is sent to it over the serial-port. In the host side there is a PDP8Client software that connects to the server and sends commands. PDP8Client can read BIN and RIM format files directly and parses them into orders to be executed by the PDP8Server. The protcol provide checksum porcessing and retransmission if checksum error or no response timeouts.
+
+Both the above pieces of code retain certain portions of the original code written by Roland, thus his copyright still apply to those portions.
+
+## M847 extended version V1.1 project files
 
 This is a project to add a bootloader or bootstraploader to a Digital / DEC PDP8/e PDP8/m PDP8/f computer.
 
