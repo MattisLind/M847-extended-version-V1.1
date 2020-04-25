@@ -9,3 +9,12 @@ The communication takes place using a simple protocol with checksum checking and
 Below is a video showing PDP8Remote in operation. Klick on the picture to start playback of the video!
 
 [![PDP8Remote in operation](http://img.youtube.com/vi/JFOzHFRHOXM/0.jpg)](http://www.youtube.com/watch?v=JFOzHFRHOXM)
+
+## Software architecture
+
+The software is partioned in the PDP8Server directory which include the code for the protocol. The PDP8Client also use the same files for the communiation protcol. For unit testing there is a separate test directory with a cople of test programs to run against the software. One usin a null modem cable and two serial ports to try to exercise as much of the code as possible. The other is more of a unit test for the protocol itself.
+
+## Bugs
+
+Occasionally I have seen that two or three words of the same value has been written after each other. It looks like it does the same DEPOSIT several times. I have not been able to track down it yet. But just to let any users know that it is a good preatice to verify that the last bytes transfered actually is written in to the correct addresses.
+
