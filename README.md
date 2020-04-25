@@ -8,6 +8,16 @@ The other tools is PDP8Remote which is a tool to remotely control the PDP-8. In 
 
 Both the above pieces of code retain certain portions of the original code written by Roland, thus his copyright still apply to those portions.
 
+## Hardware modifications to allow the M847 card to work on a PDP-8/A
+
+It appears that the PDP-8/A has some differences how it work compared to PDP-8/e. Ehen I first tried Rolands design I was unable to get the Load Address operation to work at all. It appears that the culprit was the BRK DATA signal.
+
+![Diagram](https://i.imgur.com/p8FWnCH.png)
+
+The signal BRK DATA has to be high level for LOAD ADDRESS operation. So I made this signal controlled directly by the AtMEGA328 CPU. A simple cut of the signal between U7 and U8 before it reaches pin 2 of U8 and then a wire from pin 1 of U7 to pin 16 of U1.
+
+![Modified PCB](https://i.imgur.com/2ZsWpfol.jpg)
+
 ## M847 extended version V1.1 project files
 
 This is a project to add a bootloader or bootstraploader to a Digital / DEC PDP8/e PDP8/m PDP8/f computer.
