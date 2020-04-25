@@ -6,4 +6,6 @@ The PDP8Client program is able to parse BIN and RIM style of PDP-8 binaries into
 
 The communication takes place using a simple protocol with checksum checking and resending in case of checksum errors or not acknowledging receipt of a packet within time.
 
+Below is a video showing PDP8Remote in operation. Klick on the picture to start playback of the video!
+
 [![PDP8Remote in operation](http://img.youtube.com/vi/JFOzHFRHOXM/0.jpg)](http://www.youtube.com/watch?v=JFOzHFRHOXM)
