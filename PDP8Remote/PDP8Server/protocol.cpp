@@ -47,7 +47,7 @@ bool Protocol::doCommand (char command, char msb, char lsb ,int maxRes) {
 
 bool Protocol::doCommand(char command, char * data, char len, int maxRes) {
   char sum, i;
-  if (len > 2) { 
+  if (len > MAX_PACKET) { 
     return false;
   }
   if (sendingInProgress) {
@@ -85,7 +85,7 @@ void Protocol::processProtocol(char tmp) {
     case 0x40:
       // we got a data byte
       if (protocolState == 1) {
-        if (cnt < 2) { 
+        if (cnt < MAX_PACKET) { 
           dataBuf[cnt] = data;
           cnt++;
           sum += data;
@@ -100,14 +100,14 @@ void Protocol::processProtocol(char tmp) {
       if (protocolState == 1) {
         sum += data;
         if ((0x3f & sum) == 0) {
+	  if ((rxEven && (command & 0x20)) || (!rxEven && ((command & 0x20) == 0x00) )) {
+	    processCmd (0x1f & command, dataBuf, cnt);
+	    rxEven = !rxEven;
+	  }
 	  if ((command & 0x20) == 0x20) {
 	    sendAck(true);
 	  } else {
 	    sendAck(false);
-	  }
-	  if ((rxEven && (command & 0x20)) || (!rxEven && ((command & 0x20) == 0x00) )) {
-	    processCmd (0x1f & command, dataBuf[0], dataBuf[1]);
-	    rxEven = !rxEven;
 	  }
         } else {
           protocolState = 0;

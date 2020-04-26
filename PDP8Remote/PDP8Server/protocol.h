@@ -3,16 +3,16 @@
 
 #define ACK 0xc1
 #define NAK 0xc0
-
+#define MAX_PACKET 64
 
 class Protocol {
     void (* sendByte) (char);
-    void (* processCmd) (char, char, char);
+    void (* processCmd) (char, char *, char);
     void (* requestTimeout) ( void (Protocol::*) (), int);
     void (* commandDone) (int);
     char protocolState; 
-    char dataBuf [2];
-    char sendBuf[2];
+    char dataBuf [MAX_PACKET];
+    char sendBuf[MAX_PACKET+2];
     int sendLen;
     int numResend;
     int maxResend;
@@ -30,7 +30,7 @@ class Protocol {
   public:
     bool doCommand (char command, char * data, char len ,int maxRes);
     bool doCommand (char command, char msb, char lsb ,int maxRes);
-    Protocol ( void (* s) (char), void (* p) (char, char, char), void (*) ( void (Protocol::*) (), int ), void (*) (int) ); 
+    Protocol ( void (* s) (char), void (* p) (char, char *, char), void (*) ( void (Protocol::*) (), int ), void (*) (int) ); 
     void processProtocol(char tmp);
 };
 

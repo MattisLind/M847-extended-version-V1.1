@@ -24,6 +24,8 @@ class RingBuffer aToBBuffer;
 class RingBuffer bToABuffer; 
 
 int test;
+char bigTestData [] = {0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19.20,21,22,23,24,25,26,27,28,29,30,
+		       31,32,33,34,35,36,37,38,39,40,41,42,43,44,45,46,47,48,49,50,51,52,53,54,55,56,57,58,59,60,61,62,63};
 
 
 class Protocol protocolA(aToB, processACmd, handleTimeout, commandADone);
@@ -31,23 +33,36 @@ class Protocol protocolA(aToB, processACmd, handleTimeout, commandADone);
 class Protocol protocolB(bToA, processBCmd, handleTimeout, commandBDone);
 
 
-void processACmd(char command, char msb, char lsb) {
-  printf ("A Received command %02X msb=%02X lsb=%02X", 0xff & command, 0xff & msb, 0xff & lsb);
+void processACmd(char command, char * buf, char len) {
+  int i;
+  printf ("A Received command %02X len=%02X buffer=", 0xff & command, 0xff & len);
+  for (i=0;i<len;i++) {
+    printf ("%02X ", buf[i]&0xff);
+  }
+  printf ("\n");
 }
 
 char gCommand;
 char gMsb;
 char gLsb;
 int processBCmdCnt;
+char gBuffer[64];
+char gLen;
 
-void processBCmd(char command, char msb, char lsb) {
-  printf ("B Received command %02X msb=%02X lsb=%02X\n", 0xff & command, 0xff & msb, 0xff & lsb);
+void processBCmd(char command, char * buf, char len) {
+  int i;
+  printf ("B Received command %02X len=%02X buffer=", 0xff & command, 0xff & len);
+  for (i=0;i<len;i++) {
+    printf ("%02X ", buf[i]&0xff);
+  }
+  printf ("\n");
   processBCmdCnt++;
   printf("Incremented processBCmdCnt = %d\n", processBCmdCnt);
   gCommand = command;
-  gMsb = msb;
-  gLsb = lsb;
-  
+  gMsb = buf[0];
+  gLsb = buf[1];
+  gLen = len & 0xff;
+  memcpy(gBuffer, buf, gLen);
 }
 
 int byteCnt;
@@ -61,6 +76,7 @@ void aToB(char data) {
   case 4:
   case 5:
   case 100:
+  case 9:
     aToBBuffer.writeBuffer(data);
     break;
   case 2:
@@ -115,6 +131,7 @@ void bToA(char data) {
   case 6:
   case 7:
   case 8:
+  case 9:
     bToABuffer.writeBuffer(data);
     break;
   case 4:
@@ -158,6 +175,7 @@ void commandBDone(int status) {
 }
 
 char testData [] =  {3,4};
+
 
 int main () {
   bool res;
@@ -789,6 +807,75 @@ int main () {
   assert(gLsb==4);
   assert(commandADoneV == 1);
   assert(processBCmdCnt == 1);
+
+
+  printf ("\n-----------------------------------------\n");
+  test = 100;
+  printf ("TEST %d A message with just the command.\n", test);
+  gCommand = 0;
+  gMsb = 0;
+  gLsb = 0;
+  commandADoneV=0;
+  processBCmdCnt=0;
+  res = protocolA.doCommand(1, NULL, 0, 1);
+
+  while (!aToBBuffer.isBufferEmpty() || !bToABuffer.isBufferEmpty()) {
+    if (!aToBBuffer.isBufferEmpty()) {
+      protocolB.processProtocol(aToBBuffer.readBuffer());    
+    }
+    if (!bToABuffer.isBufferEmpty()) {
+      protocolA.processProtocol(bToABuffer.readBuffer());    
+    }
+    if (!aToBBuffer.isBufferEmpty()) {
+      protocolB.processProtocol(aToBBuffer.readBuffer());    
+    }
+    if (!bToABuffer.isBufferEmpty()) {
+      protocolA.processProtocol(bToABuffer.readBuffer());    
+    }
+  }
+
+
+  assert(gCommand == 1);
+  assert(commandADoneV == 1);
+  assert(res == true);
+  assert(processBCmdCnt == 1);
+
+
+
+  printf ("\n-----------------------------------------\n");
+  test = 9;
+  printf ("TEST %d A packet with 64 bytes.\n", test);
+  gCommand = 0;
+  gMsb = 0;
+  gLsb = 0;
+  memset(gbuffer,0,1);
+  commandADoneV=0;
+  processBCmdCnt=0;
+  res = protocolA.doCommand(1, bigTestData, 64, 1);
+
+  while (!aToBBuffer.isBufferEmpty() || !bToABuffer.isBufferEmpty()) {
+    if (!aToBBuffer.isBufferEmpty()) {
+      protocolB.processProtocol(aToBBuffer.readBuffer());    
+    }
+    if (!bToABuffer.isBufferEmpty()) {
+      protocolA.processProtocol(bToABuffer.readBuffer());    
+    }
+    if (!aToBBuffer.isBufferEmpty()) {
+      protocolB.processProtocol(aToBBuffer.readBuffer());    
+    }
+    if (!bToABuffer.isBufferEmpty()) {
+      protocolA.processProtocol(bToABuffer.readBuffer());    
+    }
+  }
+
+  assert(gLen == 64);
+  assert(memcmp(gBuffer, bigTestData, gLen) == 0);
+  assert(gCommand == 1);
+  assert(commandADoneV == 1);
+  assert(res == true);
+  assert(processBCmdCnt == 1);
+
+
 
 
   printf ("\n-----------------------------------------\n");
