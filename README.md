@@ -18,6 +18,11 @@ The signal BRK DATA has to be high level for LOAD ADDRESS operation. So I made t
 
 ![Modified PCB](https://i.imgur.com/2ZsWpfol.jpg)
 
+## Hardware modifications to the EEPROM.
+
+The EEPROM in this design is the Microchip 24LC1025 chip. Reading the data sheet reveals that pin A2 is not an address but a chip select. It has to be tied to VCC for the chip to operate correctly. It is a simple matter of cautting a trace to pin 3 and wire it to pin 8.
+
+
 ## M847 extended version V1.1 project files
 
 This is a project to add a bootloader or bootstraploader to a Digital / DEC PDP8/e PDP8/m PDP8/f computer.
