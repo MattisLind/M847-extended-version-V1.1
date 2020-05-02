@@ -3,7 +3,7 @@
 #include <stdio.h>
 #include "protocol.h"
 
-Protocol::Protocol ( void (* s) (char), void (* p) (char, char, char), void (* r ) ( void (Protocol::*) (), int ), void (* c) (int) ) {
+Protocol::Protocol ( void (* s) (char), void (* p) (char, char *, char), void (* r ) ( void (Protocol::*) (), int ), void (* c) (int) ) {
    sendByte = s; processCmd = p; requestTimeout = r; commandDone = c;
    protocolState = 0;
    txEven = true;
