@@ -1,7 +1,7 @@
 #ifndef _24XX1025_H
 #define _24HH1025_H
 
-#include <I2C16.h>
+#include "I2C16.h"
 #include <Arduino.h>
 #include <inttypes.h>
 
