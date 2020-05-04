@@ -3,7 +3,7 @@
 Parts of this file is derived from original work by Roland Huismann. In particular those portions involved in commiunicating with the underlaying PDP-8 hardware
 which is taken directly from his project.
 
-For these portiosn this copyright apply:
+For these portions this copyright apply:
 
 Copyright 2019 Roland Huisman
 
@@ -18,64 +18,42 @@ The remaining portions. Notably the command dispatching and command line process
 */
 
 
-// =============================================================================================================  
-//                                         Includes
-  #include <Wire.h>                             // I2C handler
+#include "I2C16.h"                             // I2C handler
+#include "EEPROM_24XX1025.h"
 
-// =============================================================================================================  
-//                                         Pin definitions
-  #define r_RUN                   8           // PB0
-  #define r_SW                    9           // PB1
-  #define Dip_1                   10          // PB2
-  #define Dip_2                   11          // PB3
-  #define Dip_3                   12          // PB4
-  #define Dip_4                   13          // PB5
-  #define BRK_DATA                10          // PB2
-
-  #define w_INITIALIZE_H          A0          // PC0 for 400nS pulse
-  #define w_PULSE_LA_H            A1          // PC1 for 400nS pulse
-  #define w_MEM_START             A2          // PC2 for 400nS pulse
-  #define w_STOP                  A3          // PC3
+#define r_RUN                   8           // PB0
+#define r_SW                    9           // PB1
+#define Dip_1                   10          // PB2
+#define Dip_2                   11          // PB3
+#define Dip_3                   12          // PB4
+#define Dip_4                   13          // PB5
+#define BRK_DATA                10          // PB2
   
-  #define Set_Flip_Flop           2           // PD2 
-  #define Show_Data               3           // PD3 
-  #define Exam                    4           // PD4 
-  #define w_LA_ENABLE             5           // PD5
-  #define w_MS_IR_DISABLE         6           // PD6
-  #define w_KEY_CONTROL           7           // PD7
+#define w_INITIALIZE_H          A0          // PC0 for 400nS pulse
+#define w_PULSE_LA_H            A1          // PC1 for 400nS pulse
+#define w_MEM_START             A2          // PC2 for 400nS pulse
+#define w_STOP                  A3          // PC3
+  
+#define Set_Flip_Flop           2           // PD2 
+#define Show_Data               3           // PD3 
+#define Exam                    4           // PD4 
+#define w_LA_ENABLE             5           // PD5
+#define w_MS_IR_DISABLE         6           // PD6
+#define w_KEY_CONTROL           7           // PD7
+
+#define GPIOA  0x12
+#define IOCON  0x0a
+#define IODIRA 0x00
 
 
-
-// =============================================================================================================  
-//                                         Variables  
-  const    byte GPIOA                     = 0x12;  // GPIOA adres in 16-bit mode, 2x 8 I/O ports.
-  const    byte IOCON                     = 0x0A;  // IOCON adres in 16-bit mode, I/O Expander Configuration Register.
-  const    byte IODIRA                    = 0x00;  // IODIRA adres in 16-bit mode, is het I/O Direction Register voor PortA.  
-  volatile byte ProgramNumber             = 0x00;  // program to run
-  volatile byte pulseState                = 0x00;  // Previous state of switch
-  volatile unsigned long SwitchTimeOut    = 3000;  // This is the wait time (ms) after the last toggle. Then the program loads.
-  volatile word ProgramLength             = 0x0000;// To calculate the amount of words in the programs
-  volatile byte RunOnce                   = 0x00;  // just run Kitt once at turn on
-
-  unsigned long SlowDown                  = 5;     // Blink delay in milli seconds. This slows down the loading of a bootstrap to give it a nice blinking effect.
-                                                   // Placing a 0 loads the program at full speed, you can't really see a program to be loaded.
-                                                   // Placing 50 will give a nice blinking effect but it slows down the program loading.
-
+EEPROM_24XX1025 eeprom (0, 0);              // The EEPROM library will call begin and setSpeed of the I2c16 library  
 
 
 // =============================================================================================================
 //                       Transfer the switchregisterdata to the MC23017 to deposit or load address
-void SwitchRegister(word LoadData)
+void SwitchRegister(word data)
 {
-  word WordA = (LoadData)      & 0x00FF;
-  word WordB = (LoadData >> 8) & 0x00FF;
-  //Serial.println (WordA, HEX);
-  //Serial.println (WordB, HEX);
-  Wire.beginTransmission(0x20);
-  Wire.write(GPIOA);                                  // gpioa
-  Wire.write(byte(WordA)& 0xFF);                      // set A outputs to WordA
-  Wire.write(byte(WordB)& 0xFF);                      // set B outputs to WordA
-  Wire.endTransmission();
+  I2c16.write ((byte) 0x20, (word) ((GPIOA<<8) | (data & 0xff)), (byte) (data>>8) );  
 }
 
 
@@ -113,8 +91,6 @@ void Deposit()
     digitalWrite (BRK_DATA          , LOW)     ; // BRK DATA has to be high.    
     
   }
-
-
 
 // =============================================================================================================
 //                                               Address Load
@@ -170,8 +146,6 @@ void Clear()
       }
     Serial.println();  
   }
-
-  
 
 
 // =============================================================================================================
@@ -232,30 +206,16 @@ void Trigger_Mem_Start ()
     __asm__("nop\n\t"); //
     PORTC &= B11111011; // Turn on PC2
   }
-
-
-
-
-
-
-
   
 void setup ()
 {
-
   pinMode (r_RUN                  , INPUT)  ; // read RUN signal from Omnibus
   pinMode (r_SW                   , INPUT)  ; // read SW signal from Omnibus
-  pinMode (Dip_1                  , OUTPUT)  ; // Default bootprogam select for one time toggeling SW
-  pinMode (Dip_2                  , INPUT)  ; // Default bootprogam select for one time toggeling SW 
-  pinMode (Dip_3                  , INPUT)  ; // Default bootprogam select for one time toggeling SW
-  pinMode (Dip_4                  , INPUT)  ; // Default bootprogam select for one time toggeling SW
+  pinMode (BRK_DATA               , OUTPUT)  ; // Default bootprogam select for one time toggeling SW
 
   digitalWrite (r_RUN             , HIGH)   ; // turn on pull up
   digitalWrite (r_SW              , HIGH)   ; // turn on pull up
-  digitalWrite (Dip_1             , LOW)   ; // turn on pull up
-  digitalWrite (Dip_2             , HIGH)   ; // turn on pull up
-  digitalWrite (Dip_3             , HIGH)   ; // turn on pull up
-  digitalWrite (Dip_4             , HIGH)   ; // turn on pull up
+  digitalWrite (BRK_DATA          , LOW)   ; // turn on pull up
 
   digitalWrite (w_INITIALIZE_H    , LOW)    ; // Write zero before initializing output
   digitalWrite (w_PULSE_LA_H      , LOW)    ; // Write zero before initializing output
@@ -281,38 +241,21 @@ void setup ()
   pinMode (w_MS_IR_DISABLE        , OUTPUT) ; // Set to output mode
   pinMode (w_KEY_CONTROL          , OUTPUT) ; // Set to output mode
 
-
-
-
-// =============================================================================================================
-//                                          Start I2C bus
-  Wire.begin();                               // start Wire library as I2C-Bus Master
-
-  Wire.beginTransmission(0x20);               // MCP23017 Address
-  Wire.write(IOCON);                          // IOCON register
-  Wire.write(byte(B01000000));                // Enable sequential addresses
-  Wire.endTransmission();
-
-  Wire.beginTransmission(0x20);
-  Wire.write(IODIRA);                         // IODIRA register
-  Wire.write(byte(0x00));                     // Write zeto's to outputs A
-  Wire.write(byte(0x00));                     // Write zeto's to outputs B
-  Wire.endTransmission();
+  
+  I2c16.write(0x20, (IOCON<<8) | B01000000);
+  I2c16.write(0x20, (IODIRA<<8), 0x00); 
  
- 
-// =============================================================================================================
-//                                          Setup serial port for debugging
   Serial.begin (115200);
   digitalWrite (0                 , HIGH)   ; // turn on pull up on RX line
   Serial.println();
   Serial.print("PDP8CONSOLE> " );
 }
-//                                                  End setup
-// =============================================================================================================
 
 
 int cmdState;
-int hexValue=0;
+int numDigits;
+long hexValue=0L;
+long eepromAddress=0L;
 char tmp;
 char cmd;
 void printPrompt(char ch) {
@@ -327,6 +270,18 @@ void printSR(int value) {
   Serial.write((0x07 & (value >> 4)) + 0x30);
   Serial.write((0x07 & value) + 0x30);  
 }
+
+
+void printThreeDigitOctal (byte data) {
+  if (data>7) {
+    Serial.print('0');
+  }
+  if (data>63) {
+    Serial.print('0');
+  }
+  Serial.print(data, OCT);
+}
+
 
 
 void loop() {
@@ -374,7 +329,29 @@ if (Serial.available()> 0) {
             Serial.write(tmp);
             Serial.write(" ");
             cmdState=1;
+            numDigits=4;
             cmd = tmp;
+            break;
+          case 'S':
+            Serial.write(tmp);
+            Serial.write(" ");
+            cmdState=1;
+            numDigits=6;
+            cmd = tmp;
+            break;
+          case 'W':
+            Serial.write(tmp);
+            Serial.write(" ");
+            cmdState=1;
+            numDigits=3;
+            cmd = tmp;
+            break;
+          case 'G':
+            Serial.write(tmp);
+            Serial.println();
+            printThreeDigitOctal(eeprom.readByte());  
+            Serial.println();
+            Serial.print("PDP8CONSOLE> " );
             break;
           case '?':
             Serial.println();
@@ -388,6 +365,9 @@ if (Serial.available()> 0) {
             Serial.println("H - Halt.");
             Serial.println("I - Initialize.");
             Serial.println("T - Trace.");
+            Serial.println("S OOOOOO - Set address for flash");
+            Serial.println("W OOO - write octal data to address");
+            Serial.println("G - read octal data from address"); 
             Serial.println();
             Serial.print("PDP8CONSOLE> " );
             break;
@@ -401,8 +381,31 @@ if (Serial.available()> 0) {
       case 1: 
         if ((tmp >= '0' ) && (tmp <= '7')) {
           Serial.write(tmp); // Echo character
-          hexValue = (7 & tmp) << 12;
-          cmdState = 2;
+          numDigits--;
+          hexValue = (7 & tmp) << (numDigits * 3);
+          if (numDigits == 0) {
+            cmdState = 0;
+            Serial.println();
+            SwitchRegister(hexValue);
+            switch (cmd) {
+              case 'L':
+                AddresLoad();
+                break;
+              case 'D':              
+                Deposit();
+                break;
+              case 'E':
+                ExtendedAddressLoad();
+                break;
+              case 'S':
+                eeprom.setPosition(hexValue);
+                break;
+              case 'W':
+                eeprom.writeByte((byte) (hexValue & 0xff));
+                break;
+            }
+            Serial.print("PDP8CONSOLE> " );
+          }
         }
         else {
           cmdState = 0;
@@ -410,55 +413,6 @@ if (Serial.available()> 0) {
           Serial.print("PDP8CONSOLE> " );
         }
         break;        
-      case 2:
-        if ((tmp >= '0' ) && (tmp <= '7'))  {
-          Serial.write(tmp); // Echo character
-          hexValue |= (7 & tmp) << 8;
-          cmdState = 3;
-        }
-        else {
-          cmdState=0;
-          Serial.println("Invalid octal digit");
-          Serial.print("PDP8CONSOLE> " );
-        }
-      break;      
-      case 3:
-        if ((tmp >= '0' ) && (tmp <= '7'))  {
-          Serial.write(tmp); // Echo character
-          hexValue |= (7 & tmp) << 4;
-          cmdState = 4;
-        }
-        else {
-          cmdState=0;
-          Serial.println("Invalid octal digit");
-          Serial.print("PDP8CONSOLE> " );          
-        }
-      break;      
-      case 4:
-        if ((tmp >= '0' ) && (tmp <= '7'))  {
-          Serial.write(tmp); // Echo character
-          hexValue |= (7 & tmp);
-          Serial.println();
-          SwitchRegister(hexValue);
-          switch (cmd) {
-            case 'L':
-              AddresLoad();
-              break;
-            case 'D':              
-              Deposit();
-              break;
-            case 'E':
-              ExtendedAddressLoad();
-              break;
-          }
-        }
-        else {
-          Serial.println("Invalid octal digit");
-        }
-        cmdState = 0;
-        Serial.print("PDP8CONSOLE> " );
-      break;      
-
     }
   } 
 }
