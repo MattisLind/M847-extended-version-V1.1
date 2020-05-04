@@ -272,6 +272,16 @@ void printSR(int value) {
 }
 
 
+word make12BitWord (long data) {
+  word ret;
+  ret = (data & 07000) << 3;
+  ret |= (data & 0700) << 2;
+  ret |= (data & 070) << 1;
+  ret |= data & 07;
+  return ret;
+}
+
+
 void printThreeDigitOctal (byte data) {
   if (data>7) {
     Serial.print('0');
@@ -386,7 +396,7 @@ if (Serial.available()> 0) {
           if (numDigits == 0) {
             cmdState = 0;
             Serial.println();
-            SwitchRegister(hexValue);
+            SwitchRegister(make12BitWord(hexValue));
             switch (cmd) {
               case 'L':
                 AddresLoad();
