@@ -283,10 +283,10 @@ word make12BitWord (long data) {
 
 
 void printThreeDigitOctal (byte data) {
-  if (data>7) {
+  if (data<8) {
     Serial.print('0');
   }
-  if (data>63) {
+  if (data<64) {
     Serial.print('0');
   }
   Serial.print(data, OCT);
@@ -303,6 +303,7 @@ if (Serial.available()> 0) {
     }
     switch (cmdState) {
       case 0:
+        hexValue=0;
         switch (tmp) {
           case 'C': // Continue / Run
             Serial.write(tmp);
@@ -392,19 +393,21 @@ if (Serial.available()> 0) {
         if ((tmp >= '0' ) && (tmp <= '7')) {
           Serial.write(tmp); // Echo character
           numDigits--;
-          hexValue = (7 & tmp) << (numDigits * 3);
+          hexValue |= (7 & tmp) << (numDigits * 3);
           if (numDigits == 0) {
             cmdState = 0;
-            Serial.println();
-            SwitchRegister(make12BitWord(hexValue));
+            Serial.println();            
             switch (cmd) {
               case 'L':
+                SwitchRegister(make12BitWord(hexValue));  
                 AddresLoad();
                 break;
               case 'D':              
+                SwitchRegister(make12BitWord(hexValue));
                 Deposit();
                 break;
               case 'E':
+                SwitchRegister(make12BitWord(hexValue));
                 ExtendedAddressLoad();
                 break;
               case 'S':
