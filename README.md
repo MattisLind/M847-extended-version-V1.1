@@ -22,6 +22,9 @@ The signal BRK DATA has to be high level for LOAD ADDRESS operation. So I made t
 
 The EEPROM in this design is the Microchip 24LC1025 chip. Reading the data sheet reveals that pin A2 is not an address but a chip select. It has to be tied to VCC for the chip to operate correctly. It is a simple matter of cautting a trace to pin 3 and wire it to pin 8.
 
+The EEPROM_24XX1025 library is written by Thomas Backman [github link](https://github.com/exscape/electronics/tree/master/Arduino/Libraries/EEPROM/EEPROM_24XX1025)
+a move was made to the I2C16 library instead of wire. The I2C16 library is originally written but modified for the EEPROM_24XX1025 library by Thomas Backman. [github link](https://github.com/exscape/electronics/tree/master/Arduino/Libraries/EEPROM/I2C16).
+
 
 ## M847 extended version V1.1 project files
 
