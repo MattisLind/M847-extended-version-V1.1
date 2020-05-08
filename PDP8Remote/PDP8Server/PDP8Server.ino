@@ -24,8 +24,12 @@ The remaining portions. Notably the command dispatching and protocol stack is wo
 // =============================================================================================================  
 //                                         Includes
 
-#include <Wire.h>                             // I2C handler
+#include "I2C16.h"                             // I2C handler
+#include "EEPROM_24XX1025.h"
 #include "protocol.h"  
+
+
+EEPROM_24XX1025 eeprom (0, 0);              // The EEPROM library will call begin and setSpeed of the I2c16 library  
 
 
 // =============================================================================================================
@@ -77,33 +81,32 @@ void Trigger_Mem_Start ()
 
 // =============================================================================================================  
 //                                         Pin definitions
-  #define r_RUN                   8           // PB0
-  #define r_SW                    9           // PB1
-  #define Dip_1                   10          // PB2
-  #define Dip_2                   11          // PB3
-  #define Dip_3                   12          // PB4
-  #define Dip_4                   13          // PB5
-  #define BRK_DATA                10          // PB2
+#define r_RUN                   8           // PB0
+#define r_SW                    9           // PB1
+#define Dip_1                   10          // PB2
+#define Dip_2                   11          // PB3
+#define Dip_3                   12          // PB4
+#define Dip_4                   13          // PB5
+#define BRK_DATA                10          // PB2
 
-  #define w_INITIALIZE_H          A0          // PC0 for 400nS pulse
-  #define w_PULSE_LA_H            A1          // PC1 for 400nS pulse
-  #define w_MEM_START             A2          // PC2 for 400nS pulse
-  #define w_STOP                  A3          // PC3
+#define w_INITIALIZE_H          A0          // PC0 for 400nS pulse
+#define w_PULSE_LA_H            A1          // PC1 for 400nS pulse
+#define w_MEM_START             A2          // PC2 for 400nS pulse
+#define w_STOP                  A3          // PC3
   
-  #define Set_Flip_Flop           2           // PD2 
-  #define Show_Data               3           // PD3 
-  #define Exam                    4           // PD4 
-  #define w_LA_ENABLE             5           // PD5
-  #define w_MS_IR_DISABLE         6           // PD6
-  #define w_KEY_CONTROL           7           // PD7
-
+#define Set_Flip_Flop           2           // PD2 
+#define Show_Data               3           // PD3 
+#define Exam                    4           // PD4 
+#define w_LA_ENABLE             5           // PD5
+#define w_MS_IR_DISABLE         6           // PD6
+#define w_KEY_CONTROL           7           // PD7
+#define GPIOA  0x12
+#define IOCON  0x0a
+#define IODIRA 0x00
 
 
 // =============================================================================================================  
 //                                         Variables  
-  const    byte GPIOA                     = 0x12;  // GPIOA adres in 16-bit mode, 2x 8 I/O ports.
-  const    byte IOCON                     = 0x0A;  // IOCON adres in 16-bit mode, I/O Expander Configuration Register.
-  const    byte IODIRA                    = 0x00;  // IODIRA adres in 16-bit mode, is het I/O Direction Register voor PortA.  
   volatile byte ProgramNumber             = 0x00;  // program to run
   volatile byte pulseState                = 0x00;  // Previous state of switch
   volatile unsigned long SwitchTimeOut    = 3000;  // This is the wait time (ms) after the last toggle. Then the program loads.
@@ -118,17 +121,9 @@ void Trigger_Mem_Start ()
 
 // =============================================================================================================
 //                       Transfer the switchregisterdata to the MC23017 to deposit or load address
-void SwitchRegister(word LoadData)
+void SwitchRegister(word data)
 {
-  word WordA = (LoadData)      & 0x00FF;
-  word WordB = (LoadData >> 8) & 0x00FF;
-  //Serial.println (WordA, HEX);
-  //Serial.println (WordB, HEX);
-  Wire.beginTransmission(0x20);
-  Wire.write(GPIOA);                                  // gpioa
-  Wire.write(byte(WordA)& 0xFF);                      // set A outputs to WordA
-  Wire.write(byte(WordB)& 0xFF);                      // set B outputs to WordA
-  Wire.endTransmission();
+  I2c16.write ((byte) 0x20, (word) ((GPIOA<<8) | (data & 0xff)), (byte) (data>>8) );  
 }
 
 
@@ -292,18 +287,8 @@ void setup ()
 
 // =============================================================================================================
 //                                          Start I2C bus
-  Wire.begin();                               // start Wire library as I2C-Bus Master
-
-  Wire.beginTransmission(0x20);               // MCP23017 Address
-  Wire.write(IOCON);                          // IOCON register
-  Wire.write(byte(B01000000));                // Enable sequential addresses
-  Wire.endTransmission();
-
-  Wire.beginTransmission(0x20);
-  Wire.write(IODIRA);                         // IODIRA register
-  Wire.write(byte(0x00));                     // Write zeto's to outputs A
-  Wire.write(byte(0x00));                     // Write zeto's to outputs B
-  Wire.endTransmission();
+  I2c16.write(0x20, (IOCON<<8) | B01000000);
+  I2c16.write(0x20, (IODIRA<<8), 0x00); 
  
  
 // =============================================================================================================
