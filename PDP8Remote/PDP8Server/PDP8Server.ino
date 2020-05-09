@@ -313,8 +313,8 @@ word make12BitWord (char msb,  char lsb) {
   return ret;
 }
 
-void processCmd(char command, char msb, char lsb) {
-  word octalValue = make12BitWord(msb, lsb); 
+void processCmd(char command, char * data, char count) {
+  word octalValue = make12BitWord(data[0], data[1]); 
   switch (command) {
     case 0: // NOP
       break;
