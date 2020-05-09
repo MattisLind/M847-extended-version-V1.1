@@ -100,14 +100,14 @@ void Protocol::processProtocol(char tmp) {
       if (protocolState == 1) {
         sum += data;
         if ((0x3f & sum) == 0) {
-	  if ((rxEven && (command & 0x20)) || (!rxEven && ((command & 0x20) == 0x00) )) {
-	    processCmd (0x1f & command, dataBuf, cnt);
-	    rxEven = !rxEven;
-	  }
 	  if ((command & 0x20) == 0x20) {
 	    sendAck(true);
 	  } else {
 	    sendAck(false);
+	  }
+	  if ((rxEven && (command & 0x20)) || (!rxEven && ((command & 0x20) == 0x00) )) {
+	    processCmd (0x1f & command, dataBuf[0], dataBuf[1]);
+	    rxEven = !rxEven;
 	  }
         } else {
           protocolState = 0;

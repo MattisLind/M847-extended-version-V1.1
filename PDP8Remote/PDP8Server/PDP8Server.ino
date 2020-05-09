@@ -313,8 +313,39 @@ word make12BitWord (char msb,  char lsb) {
   return ret;
 }
 
+void processCmd(char, char *, char);
+
+
+void sendByte(char data) {
+  Serial.write(data);
+}
+
+typedef  void (Protocol::* TimeoutFn)();
+
+TimeoutFn timeoutFn;
+int  timeout;
+unsigned long previousMillis;
+void handleTimeout ( void (Protocol::* t) (), int ms) {
+
+  timeoutFn = t;
+  previousMillis = millis();
+}
+
+
+#define CALL_MEMBER_FN(object,ptrToMember)  ((object).*(ptrToMember))
+
+
+void commandDone(int status) {
+
+}
+
+
+class Protocol protocol (sendByte, processCmd, handleTimeout, commandDone); 
+
 void processCmd(char command, char * data, char count) {
-  word octalValue = make12BitWord(data[0], data[1]); 
+  word octalValue = make12BitWord(data[0], data[1]);
+  long eepromAddress; 
+  char buffer [128];
   switch (command) {
     case 0: // NOP
       break;
@@ -342,34 +373,23 @@ void processCmd(char command, char * data, char count) {
       Continue();
       UndoSingleStep();
       break;
+    case 7: // set address
+      // Address if four bytes
+      eepromAddress = (long) *data;
+      eeprom.setPosition(eepromAddress);
+      break;
+    case 8: // read 128 bytes
+      eeprom.read(buffer, 128);
+      protocol.doCommand(8, buffer, 128,10);
+      break;
+    case 9: // write 128 bytes
+      eeprom.write(data, 128);
+      break;
   }
 }
 
-void sendByte(char data) {
-  Serial.write(data);
-}
-
-typedef  void (Protocol::* TimeoutFn)();
-
-TimeoutFn timeoutFn;
-int  timeout;
-unsigned long previousMillis;
-void handleTimeout ( void (Protocol::* t) (), int ms) {
-
-  timeoutFn = t;
-  previousMillis = millis();
-}
 
 
-#define CALL_MEMBER_FN(object,ptrToMember)  ((object).*(ptrToMember))
-
-
-void commandDone(int status) {
-
-}
-
-
-class Protocol protocol (sendByte, processCmd, handleTimeout, commandDone); 
 
 void checkTimeout() {
   if (timeout > 0) {

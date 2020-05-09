@@ -3,7 +3,7 @@
 
 #define ACK 0xc1
 #define NAK 0xc0
-#define MAX_PACKET 64
+#define MAX_PACKET 128
 
 class Protocol {
     void (* sendByte) (char);
